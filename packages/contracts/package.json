@@ -1,0 +1,18 @@
+{
+  "name": "@chiron/contracts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "openapi-typescript ./openapi.json -o ./src/generated/api.ts",
+    "build": "pnpm run generate",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --ignore-path ../../.prettierignore --write .",
+    "format:check": "prettier --ignore-path ../../.prettierignore --check .",
+    "test": "echo \"contracts: no tests\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.3.0",
+    "typescript": "^5.6.3"
+  }
+}

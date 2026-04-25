@@ -1,0 +1,90 @@
+# Chiron
+
+This repository is structured as a production-oriented monorepo with a Next.js frontend and a Python multi-agent backend. Turborepo orchestrates cross-package builds, contracts generation, type-checking, and parallel local development.
+
+## Structure
+
+```text
+.
+├── apps/
+│   └── web/                     # Next.js app
+├── backend/                     # FastAPI API + agent workers + shared Python code
+├── packages/
+│   ├── contracts/               # OpenAPI artifact + generated TypeScript types
+│   └── ui/                      # Optional shared React UI package
+├── docs/                        # Architecture and operational docs
+├── ops/                         # Observability and infrastructure config
+├── .github/workflows/           # CI pipelines
+├── docker-compose.yml           # Local multi-service stack
+├── turbo.json                   # Build graph and task caching
+└── package.json                 # Root workspace scripts
+```
+
+## Development
+
+### Prerequisites
+
+- Node.js 20+
+- pnpm 10+
+- Python 3.12+
+- Docker Desktop or compatible engine
+
+### Install
+
+```bash
+pnpm install
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements-dev.txt
+```
+
+### Run locally
+
+```bash
+pnpm dev
+```
+
+This starts:
+
+- `apps/web` on `http://localhost:3000`
+- `backend` API on `http://localhost:8000`
+- `backend` worker process for agent execution
+
+### Linting and formatting
+
+```bash
+pnpm lint
+pnpm format
+pnpm format:check
+```
+
+Repo defaults:
+
+- `ESLint` handles TypeScript and Next.js from [eslint.config.mjs](/Users/ehmadsaeed/repos/Chiron/eslint.config.mjs)
+- `Prettier` formats frontend, shared packages, JSON, and Markdown from [.prettierrc.json](/Users/ehmadsaeed/repos/Chiron/.prettierrc.json)
+- `Ruff` formats and lints Python from [backend/pyproject.toml](/Users/ehmadsaeed/repos/Chiron/backend/pyproject.toml)
+- `VS Code` picks the right formatter automatically via [.vscode/settings.json](/Users/ehmadsaeed/repos/Chiron/.vscode/settings.json)
+
+### Contracts generation
+
+```bash
+pnpm contracts:generate
+```
+
+The backend exports OpenAPI, and `packages/contracts` is the single TypeScript import surface for frontend API types.
+
+## Runtime model
+
+- Frontend uses REST for request/response and WebSocket for live agent activity.
+- API handles authentication, session orchestration, persistence boundaries, and fan-out of realtime events.
+- Workers execute agent flows independently and can scale horizontally without scaling the API.
+- Redis is the default coordination layer for queueing and pub/sub in production; the scaffold uses an in-memory hub to keep local setup simple.
+
+## Deployment
+
+- Deploy `apps/web` separately on Vercel or as a container.
+- Deploy `backend` API and worker as separate services from the same codebase and image family.
+- Use Redis for queueing/pub-sub and Postgres for run metadata, audit trails, and resumability.
+- Export telemetry via OpenTelemetry to a collector, then to your logging/metrics stack.
+
+Additional detail lives in [docs/architecture.md](/Users/ehmadsaeed/repos/Chiron/docs/architecture.md).
