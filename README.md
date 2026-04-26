@@ -75,10 +75,10 @@ pnpm format:check
 
 Repo defaults:
 
-- `ESLint` handles TypeScript and React from [eslint.config.mjs](/Users/ehmadsaeed/repos/Chiron/eslint.config.mjs)
-- `Prettier` formats frontend, shared packages, JSON, and Markdown from [.prettierrc.json](/Users/ehmadsaeed/repos/Chiron/.prettierrc.json)
-- `Ruff` formats and lints Python from [backend/pyproject.toml](/Users/ehmadsaeed/repos/Chiron/backend/pyproject.toml)
-- `VS Code` picks the right formatter automatically via [.vscode/settings.json](/Users/ehmadsaeed/repos/Chiron/.vscode/settings.json)
+- `ESLint` handles TypeScript and React from [eslint.config.mjs](./eslint.config.mjs)
+- `Prettier` formats frontend, shared packages, JSON, and Markdown from [.prettierrc.json](./.prettierrc.json)
+- `Ruff` formats and lints Python from [backend/pyproject.toml](./backend/pyproject.toml)
+- `VS Code` picks the right formatter automatically via [.vscode/settings.json](./.vscode/settings.json)
 
 ### Contracts generation
 
@@ -102,4 +102,4 @@ The backend exports OpenAPI, and `packages/contracts` is the single TypeScript i
 - Use Redis for queueing/pub-sub and Postgres for run metadata, audit trails, and resumability.
 - Export telemetry via OpenTelemetry to a collector, then to your logging/metrics stack.
 
-Additional detail lives in [docs/architecture.md](/Users/ehmadsaeed/repos/Chiron/docs/architecture.md).
+Additional detail lives in [docs/architecture.md](./docs/architecture.md).
