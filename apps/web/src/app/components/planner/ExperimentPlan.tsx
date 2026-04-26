@@ -216,11 +216,11 @@ function SectionCard({
                 onClick={() => setShowReview(!showReview)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all"
                 style={{
-                  background: showReview ? "rgba(124,58,237,0.15)" : "rgba(255,255,255,0.04)",
+                  background: showReview ? "rgba(124,58,237,0.15)" : "rgba(0,212,255,0.06)",
                   border: showReview
                     ? "1px solid rgba(124,58,237,0.4)"
-                    : "1px solid rgba(255,255,255,0.08)",
-                  color: showReview ? "#a78bfa" : "#64748b",
+                    : "1px solid rgba(0,212,255,0.15)",
+                  color: showReview ? "#a78bfa" : "#22d3ee",
                   fontSize: "12px",
                   fontFamily: "Space Grotesk, sans-serif"
                 }}
@@ -664,167 +664,171 @@ export function ExperimentPlan({
 
       {/* ── MAIN CONTENT ── */}
       <div ref={contentRef} className="relative z-10 flex-1 overflow-y-auto">
-        {/* Sticky header */}
-        <div
-          className="sticky top-0 z-20 px-6 py-3 flex items-center justify-between"
-          style={{
-            background: "rgba(5,10,20,0.9)",
-            borderBottom: "1px solid rgba(255,255,255,0.05)",
-            backdropFilter: "blur(20px)"
-          }}
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="min-w-0">
-              <p
-                className="text-white truncate"
+        {/* Sticky header + review banner (one sticky stack so the banner stays pinned while content scrolls) */}
+        <div className="sticky top-0 z-20 flex flex-col">
+          <div
+            className="px-6 py-3 flex items-center justify-between"
+            style={{
+              background: "rgba(5,10,20,0.9)",
+              borderBottom: "1px solid rgba(255,255,255,0.05)",
+              backdropFilter: "blur(20px)"
+            }}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="min-w-0">
+                <p
+                  className="text-white truncate"
+                  style={{
+                    fontFamily: "Space Grotesk, sans-serif",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    maxWidth: "400px"
+                  }}
+                >
+                  {plan.title}
+                </p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <NoveltyBadge signal={qcResult?.signal ?? "not_found"} />
+                  <ComplexityBadge level={plan.complexity} />
+                  <span
+                    className="text-slate-600"
+                    style={{ fontSize: "10px", fontFamily: "JetBrains Mono, monospace" }}
+                  >
+                    {plan.createdAt}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {hasPriorFeedback && (
+                <div
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+                  style={{
+                    background: "rgba(124,58,237,0.1)",
+                    border: "1px solid rgba(124,58,237,0.25)"
+                  }}
+                >
+                  <MessageSquareQuote size={11} className="text-purple-400" />
+                  <span
+                    className="text-purple-400"
+                    style={{ fontSize: "10px", fontFamily: "JetBrains Mono, monospace" }}
+                  >
+                    Prior corrections applied
+                  </span>
+                </div>
+              )}
+              <button
+                onClick={toggleReviewMode}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all"
                 style={{
-                  fontFamily: "Space Grotesk, sans-serif",
-                  fontSize: "14px",
-                  fontWeight: 600,
-                  maxWidth: "400px"
+                  background: reviewMode ? "rgba(124,58,237,0.15)" : "rgba(255,255,255,0.04)",
+                  border: reviewMode
+                    ? "1px solid rgba(124,58,237,0.4)"
+                    : "1px solid rgba(255,255,255,0.08)",
+                  color: reviewMode ? "#a78bfa" : "#64748b",
+                  fontSize: "12px",
+                  fontFamily: "Space Grotesk, sans-serif"
                 }}
               >
-                {plan.title}
-              </p>
-              <div className="flex items-center gap-2 mt-0.5">
-                <NoveltyBadge signal={qcResult?.signal ?? "not_found"} />
-                <ComplexityBadge level={plan.complexity} />
-                <span
-                  className="text-slate-600"
-                  style={{ fontSize: "10px", fontFamily: "JetBrains Mono, monospace" }}
-                >
-                  {plan.createdAt}
-                </span>
-              </div>
+                <Pencil size={12} />
+                {reviewMode ? "Exit Review" : "Review Mode"}
+              </button>
+              <button
+                onClick={handleExportMarkdown}
+                disabled={isExporting}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
+                style={{
+                  background: "rgba(0,212,255,0.08)",
+                  border: "1px solid rgba(0,212,255,0.2)",
+                  color: "#00d4ff",
+                  fontSize: "12px",
+                  fontFamily: "Space Grotesk, sans-serif"
+                }}
+              >
+                {isExporting ? (
+                  <>
+                    <div
+                      className="w-3 h-3 rounded-full border-2 border-t-transparent animate-spin"
+                      style={{ borderColor: "rgba(0,212,255,0.3)", borderTopColor: "#00d4ff" }}
+                    />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <Download size={12} /> Export
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {hasPriorFeedback && (
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-                style={{
-                  background: "rgba(124,58,237,0.1)",
-                  border: "1px solid rgba(124,58,237,0.25)"
-                }}
+          <AnimatePresence>
+            {reviewMode && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
               >
-                <MessageSquareQuote size={11} className="text-purple-400" />
-                <span
-                  className="text-purple-400"
-                  style={{ fontSize: "10px", fontFamily: "JetBrains Mono, monospace" }}
+                <div
+                  className="px-6 py-3 flex items-center justify-between"
+                  style={{
+                    background: "rgba(124,58,237,0.12)",
+                    borderBottom: "1px solid rgba(124,58,237,0.25)",
+                    backdropFilter: "blur(10px)"
+                  }}
                 >
-                  Prior corrections applied
-                </span>
-              </div>
-            )}
-            <button
-              onClick={toggleReviewMode}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all"
-              style={{
-                background: reviewMode ? "rgba(124,58,237,0.15)" : "rgba(255,255,255,0.04)",
-                border: reviewMode
-                  ? "1px solid rgba(124,58,237,0.4)"
-                  : "1px solid rgba(255,255,255,0.08)",
-                color: reviewMode ? "#a78bfa" : "#64748b",
-                fontSize: "12px",
-                fontFamily: "Space Grotesk, sans-serif"
-              }}
-            >
-              <Pencil size={12} />
-              {reviewMode ? "Exit Review" : "Review Mode"}
-            </button>
-            <button
-              onClick={handleExportMarkdown}
-              disabled={isExporting}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
-              style={{
-                background: "rgba(0,212,255,0.08)",
-                border: "1px solid rgba(0,212,255,0.2)",
-                color: "#00d4ff",
-                fontSize: "12px",
-                fontFamily: "Space Grotesk, sans-serif"
-              }}
-            >
-              {isExporting ? (
-                <>
-                  <div
-                    className="w-3 h-3 rounded-full border-2 border-t-transparent animate-spin"
-                    style={{ borderColor: "rgba(0,212,255,0.3)", borderTopColor: "#00d4ff" }}
-                  />
-                  Exporting...
-                </>
-              ) : (
-                <>
-                  <Download size={12} /> Export
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Review mode banner */}
-        <AnimatePresence>
-          {reviewMode && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <div
-                className="px-6 py-3 flex items-center justify-between"
-                style={{
-                  background: "rgba(124,58,237,0.08)",
-                  borderBottom: "1px solid rgba(124,58,237,0.2)"
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
-                  <span
-                    className="text-purple-300"
-                    style={{
-                      fontSize: "12px",
-                      fontFamily: "Space Grotesk, sans-serif",
-                      fontWeight: 600
-                    }}
-                  >
-                    SCIENTIST REVIEW MODE
-                  </span>
-                  <span
-                    className="text-purple-500"
-                    style={{ fontSize: "11px", fontFamily: "Inter, sans-serif" }}
-                  >
-                    Expand each section to rate, annotate, and submit corrections. Your feedback
-                    trains the model.
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span
-                    className="text-purple-400"
-                    style={{ fontSize: "11px", fontFamily: "JetBrains Mono, monospace" }}
-                  >
-                    {totalReviews}/{PLANNER_NAV_SECTIONS.length} reviewed
-                  </span>
-                  {totalReviews > 0 && (
-                    <button
-                      onClick={handleFinalSubmit}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+                    <span
+                      className="text-purple-300"
                       style={{
-                        background: "rgba(124,58,237,0.2)",
-                        border: "1px solid rgba(124,58,237,0.4)",
-                        color: "#a78bfa",
                         fontSize: "12px",
-                        fontFamily: "Space Grotesk, sans-serif"
+                        fontFamily: "Space Grotesk, sans-serif",
+                        fontWeight: 600
                       }}
                     >
-                      <Send size={11} /> Submit All Feedback
-                    </button>
-                  )}
+                      SCIENTIST REVIEW MODE
+                    </span>
+                    <span
+                      className="text-purple-500"
+                      style={{ fontSize: "11px", fontFamily: "Inter, sans-serif" }}
+                    >
+                      Expand each section to rate, annotate, and submit corrections. Your feedback
+                      trains the model.
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="text-purple-400"
+                      style={{ fontSize: "11px", fontFamily: "JetBrains Mono, monospace" }}
+                    >
+                      {totalReviews}/{PLANNER_NAV_SECTIONS.length} reviewed
+                    </span>
+                    {totalReviews > 0 && (
+                      <button
+                        onClick={handleFinalSubmit}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg shadow-lg hover:brightness-110 transition-all"
+                        style={{
+                          background: "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)",
+                          border: "1px solid rgba(124,58,237,0.5)",
+                          color: "white",
+                          fontSize: "12px",
+                          fontFamily: "Space Grotesk, sans-serif",
+                          fontWeight: 600,
+                          boxShadow: "0 0 20px rgba(124,58,237,0.3)"
+                        }}
+                      >
+                        <Send size={11} /> Submit All Feedback
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Feedback success toast */}
         <AnimatePresence>
