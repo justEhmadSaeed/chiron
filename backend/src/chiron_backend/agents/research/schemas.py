@@ -1,14 +1,14 @@
-from typing import List, Optional, Literal, Any
+from typing import List, Optional, Any
 from pydantic import BaseModel, Field
 
-# 1. PIMO Architect Output
+
 class PIMOArchitectOutput(BaseModel):
     population: str
     intervention: str
     mechanism: str
     outcome: str
 
-# 2. Adversarial Agent Output
+
 class Reference(BaseModel):
     id: str = "unknown"
     title: str = "unknown"
@@ -18,27 +18,45 @@ class Reference(BaseModel):
     doi: str = "unknown"
     url: str = "unknown"
     similarity: float = 0.0
-    reference_type: str = Field(default="unknown", description="Must be 'journal' or 'preprint'")
+    reference_type: str = Field(default="journal", description="Must be 'journal', 'preprint', or 'review'")
+
 
 class AdversarialAgentOutput(BaseModel):
-    reasoning: str = Field(default="", description="Explain the step-by-step reasoning for the chosen signal and novelty score.")
+    reasoning: str = Field(default="", description="Step-by-step reasoning for signal and novelty score.")
     signal: str = Field(default="not_found", description="Must be 'similar_work', 'exact_match', or 'not_found'")
     noveltyScore: float = 0.0
     scanDuration: float = 0.0
     databases: List[str] = Field(default_factory=list)
     references: List[Reference] = Field(default_factory=list)
 
-# 3. Remediation Agent Output
+
 class RemediationAgentOutput(BaseModel):
     suggestion: str = "No suggestion provided."
 
-# 4. QC Router Output
+
+class SummaryParagraph(BaseModel):
+    """A single paragraph of the AI-generated QC summary with inline citation indices."""
+    text: str = Field(default="", description="The main text of this paragraph, ending before any inline citations.")
+    citations: List[int] = Field(default_factory=list, description="1-based indices into the references array that this paragraph cites. Empty list if none.")
+    continuation: Optional[str] = Field(default=None, description="Optional continuation text that appears after the inline citations (e.g. the rest of the sentence).")
+
+
 class QCRouterOutput(BaseModel):
-    reasoning: str = Field(default="", description="Explain the routing decision and summary.")
+    reasoning: str = Field(default="", description="Internal routing decision reasoning.")
     signal: str = Field(default="not_found", description="Must be 'similar_work', 'exact_match', or 'not_found'")
     noveltyScore: float = 0.0
     scanDuration: float = 0.0
     databases: List[str] = Field(default_factory=list)
     references: List[Reference] = Field(default_factory=list)
+    summary: List[SummaryParagraph] = Field(
+        default_factory=list,
+        description=(
+            "A structured array of paragraphs forming the QC Intelligence Brief. "
+            "Each paragraph has 'text' (main content), 'citations' (1-based reference indices), "
+            "and optional 'continuation' (text after citations). "
+            "Generate 4–6 paragraphs: an overview paragraph, one paragraph per key reference "
+            "with an inline citation, and a concluding recommendation paragraph."
+        ),
+    )
     suggestion: Optional[str] = None
-    final_report_text: str = Field(default="", description="A beautifully formatted Markdown report synthesizing all findings.")
+    final_report_text: str = Field(default="", description="Beautifully formatted Markdown report synthesizing all findings.")

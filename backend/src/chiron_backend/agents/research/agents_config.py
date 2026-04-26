@@ -574,10 +574,35 @@ class QCRouterConfig(BaseAgentConfig):
         "   a. Forward {signal, noveltyScore, references} to the Remediation Agent.\n"
         "   b. Receive the 'suggestion' string from the Remediation Agent.\n"
         "   c. Merge 'suggestion' into the QCResult.\n"
-        "4. In the 'final_report_text' field, generate a highly professional, beautifully formatted Markdown report synthesizing all findings. Include the overall novelty signal, the final similarity score, the remediation suggestion (if any), and a cleanly formatted bulleted list of the exact references checked (including their title, authors, journal/conference, year, similarity score, and url as a Markdown link). Do NOT leave 'final_report_text' blank.\n"
-        "5. NEVER modify the Adversarial Agent's original data fields.\n"
-        "6. IMPORTANT: You MUST format `references` strictly as an array of JSON objects matching the schema, never as an array of strings. Copy the objects exactly as provided."
+        "4. GENERATE THE 'summary' ARRAY — this is the most important output field:\n"
+        "   a. Produce 4–6 SummaryParagraph objects.\n"
+        "   b. Paragraph 1: An overview paragraph summarizing the scan scope "
+        "(databases scanned, total records analyzed, novelty score) and the "
+        "overall finding. 'citations' should be an empty list [].\n"
+        "   c. Paragraphs 2–4: One paragraph per key reference. Put the author "
+        "name and context in 'text', put the 1-based reference index in 'citations' "
+        "(e.g. [1] for the first reference), and continue the analysis in "
+        "'continuation'. Example:\n"
+        "     {\"text\": \"The closest match at 68% similarity — Lin et al.\", "
+        "\"citations\": [1], \"continuation\": \" — demonstrated CRISPR correction "
+        "in comparable iPSC systems (Nature Medicine, 2022). Their primary "
+        "endpoint was transcriptomic; the multi-modal stack proposed here was "
+        "not employed, leaving a distinct functional gap.\"}\n"
+        "   d. Final paragraph: A recommendation paragraph summarizing key "
+        "differentiators and whether to proceed. 'citations' should be [].\n"
+        "   e. IMPORTANT: 'citations' uses 1-based indices — the first reference "
+        "is [1], the second is [2], etc.\n"
+        "5. For each reference, ensure the 'id' field is set to 'ref1', 'ref2', "
+        "etc. (matching their 1-based position). Ensure 'reference_type' is set "
+        "to 'journal', 'preprint', or 'review'.\n"
+        "6. In the 'final_report_text' field, generate a professional Markdown "
+        "report synthesizing all findings.\n"
+        "7. NEVER modify the Adversarial Agent's original data fields.\n"
+        "8. IMPORTANT: You MUST format `references` strictly as an array of "
+        "JSON objects matching the schema, never as an array of strings. "
+        "Copy the objects exactly as provided."
     )
+
 
     expected_output_schema: dict[str, str] = {
         "signal": "enum: 'similar_work' | 'exact_match' | 'not_found'",
@@ -588,11 +613,16 @@ class QCRouterConfig(BaseAgentConfig):
             "array of {id: string, title: string, "
             "authors: string, journal: string, year: string, "
             "doi: string, similarity: number, "
-            "type: enum 'journal' | 'preprint'}"
+            "reference_type: enum 'journal' | 'preprint' | 'review'}"
+        ),
+        "summary": (
+            "array of {text: string, citations: array of int (1-based), "
+            "continuation?: string} — 4–6 paragraphs forming the QC Intelligence Brief"
         ),
         "suggestion": "string | null (null when signal == 'not_found')",
         "final_report_text": "string (The fully generated markdown report)",
     }
+
 
 
 class RemediationAgentConfig(BaseAgentConfig):

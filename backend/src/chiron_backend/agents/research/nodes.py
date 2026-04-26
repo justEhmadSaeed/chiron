@@ -224,8 +224,25 @@ def qc_router_node(state: AgentState) -> Dict[str, Any]:
 
     result = structured_llm.invoke(messages)
     final_dict = result.model_dump()
+
+    # Post-process references for frontend compatibility
+    for i, ref in enumerate(final_dict.get("references", [])):
+        ref["id"] = f"ref{i + 1}"
+        if "reference_type" in ref:
+            ref["type"] = ref.pop("reference_type")
+        if "type" not in ref:
+            ref["type"] = "journal"
+        ref.pop("url", None)
+        ref.pop("reasoning", None)
+
+    # Strip internal fields the frontend doesn't need
+    final_dict.pop("reasoning", None)
+    final_dict.pop("final_report_text", None)
+
     logger.info(f"  ✓ QC Router done. Final signal: '{final_dict.get('signal')}', "
-                f"Novelty: {final_dict.get('noveltyScore')}.")
+                f"Novelty: {final_dict.get('noveltyScore')}, "
+                f"Summary paragraphs: {len(final_dict.get('summary', []))}.")
     logger.info("--- ADVERSARIAL PIPELINE COMPLETE")
 
     return {"final_client_report": json.dumps(final_dict, indent=2, ensure_ascii=False)}
+

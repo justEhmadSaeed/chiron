@@ -53,8 +53,15 @@ async def simulate_lqc_process(experiment_id: str, hub: Any) -> None:
                 }),
             )
 
+        from chiron_backend.common.models import QCResult
         qc_dict = json.loads(result.get("final_client_report", "{}"))
-        ref.update({"status": ExperimentStatus.LQC_COMPLETED.value, "LQC": qc_dict})
+        qc_result = QCResult.model_validate(qc_dict)
+        qc_to_save = qc_result.model_dump()
+        logger.info(f"[LQC] Saving QCResult — signal={qc_to_save.get('signal')}, "
+                    f"noveltyScore={qc_to_save.get('noveltyScore')}, "
+                    f"references={len(qc_to_save.get('references', []))}")
+        ref.update({"status": ExperimentStatus.LQC_COMPLETED.value, "LQC": qc_to_save})
+
 
         event = AgentEvent(
             run_id=experiment_id,
