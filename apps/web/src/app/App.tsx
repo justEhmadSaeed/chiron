@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { agentEventsWebSocketUrl, apiUrl } from "../lib/backendUrl";
 import { ExperimentPlan } from "./components/planner/ExperimentPlan";
 import { InputStage } from "./components/planner/InputStage";
 import { PlanningStage } from "./components/planner/PlanningStage";
@@ -116,7 +117,7 @@ function ExperimentViewer() {
   } = useQuery({
     queryKey: ["experiment", id],
     queryFn: async () => {
-      const res = await fetch(`/api/experiments/${id}`);
+      const res = await fetch(apiUrl(`/api/experiments/${id}`));
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
@@ -134,8 +135,7 @@ function ExperimentViewer() {
     // If the experiment is already past scanning/planning, skip WS
     if (experiment?.status && !["running", "planning"].includes(experiment.status)) return;
 
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${protocol}://${window.location.host}/ws/agent-events`);
+    const ws = new WebSocket(agentEventsWebSocketUrl());
     wsRef.current = ws;
 
     ws.onmessage = (event: MessageEvent) => {
@@ -178,7 +178,7 @@ function ExperimentViewer() {
 
   const startPlanMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/experiments/${id}/start-plan`, { method: "POST" });
+      const res = await fetch(apiUrl(`/api/experiments/${id}/start-plan`), { method: "POST" });
       if (!res.ok) throw new Error("Failed to start plan");
       return res.json();
     },
@@ -189,7 +189,7 @@ function ExperimentViewer() {
 
   const submitFeedbackMutation = useMutation({
     mutationFn: async (feedback: ExperimentFeedback) => {
-      const res = await fetch(`/api/experiments/${id}/feedback`, {
+      const res = await fetch(apiUrl(`/api/experiments/${id}/feedback`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(feedback)
@@ -367,7 +367,7 @@ function Home() {
 
   const generateMutation = useMutation({
     mutationFn: async (question: string) => {
-      const res = await fetch("/api/experiments/generate", {
+      const res = await fetch(apiUrl("/api/experiments/generate"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question })

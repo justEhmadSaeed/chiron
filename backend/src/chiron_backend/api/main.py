@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from chiron_backend.api.routes.agents import router as agents_router
 from chiron_backend.api.routes.experiments import router as experiments_router
 from chiron_backend.api.routes.health import router as health_router
+from chiron_backend.common.config import get_settings
 from chiron_backend.common.firebase import initialize_firebase
 from chiron_backend.common.logging import configure_logging
 from chiron_backend.common.realtime import RealtimeHub, ensure_realtime_hub
@@ -26,9 +27,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_settings = get_settings()
+_cors_origins = [o.strip() for o in _settings.cors_origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

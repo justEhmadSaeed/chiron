@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "cd \"$(git rev-parse --show-toplevel)\" && pnpm install --frozen-lockfile",
+  "buildCommand": "cd \"$(git rev-parse --show-toplevel)\" && pnpm exec turbo run build --filter=@chiron/web",
+  "outputDirectory": "dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
