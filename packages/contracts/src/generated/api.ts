@@ -90,6 +90,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/experiments/{experiment_id}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Experiment Feedback */
+        post: operations["submit_experiment_feedback_api_experiments__experiment_id__feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -143,6 +160,17 @@ export interface components {
             /** Question */
             question: string;
         };
+        /** ExperimentFeedback */
+        ExperimentFeedback: {
+            /** Rating */
+            rating: number;
+            /** Issue Tags */
+            issue_tags?: string[];
+            /** Annotation */
+            annotation: string;
+            /** Corrections */
+            corrections: string;
+        };
         /** ExperimentPlanData */
         ExperimentPlanData: {
             /** Title */
@@ -185,6 +213,7 @@ export interface components {
             created_at: string;
             LQC?: components["schemas"]["QCResult"] | null;
             plan?: components["schemas"]["ExperimentPlanData"] | null;
+            feedback?: components["schemas"]["ExperimentFeedback"] | null;
         };
         /**
          * ExperimentStatus
@@ -489,6 +518,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_experiment_feedback_api_experiments__experiment_id__feedback_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExperimentFeedback"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

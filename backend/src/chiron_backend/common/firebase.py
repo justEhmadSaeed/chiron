@@ -27,19 +27,22 @@ def initialize_firebase() -> None:
         elif settings.firebase_credentials_path:
             try:
                 cred = credentials.Certificate(settings.firebase_credentials_path)
-                logger.info(f"Initialized Firebase credentials from path: {settings.firebase_credentials_path}")
+                logger.info(
+                    f"Initialized Firebase credentials from path: {settings.firebase_credentials_path}"
+                )
             except Exception as e:
-                logger.error(f"Failed to load firebase credentials from path {settings.firebase_credentials_path}: {e}")
+                logger.error(
+                    f"Failed to load firebase credentials from path {settings.firebase_credentials_path}: {e}"
+                )
 
         if cred is None:
-            logger.warning("No Firebase credentials provided. Attempting to initialize without explicit credentials.")
-            firebase_admin.initialize_app(
-                options={"databaseURL": settings.firebase_database_url}
+            logger.warning(
+                "No Firebase credentials provided. Attempting to initialize without explicit credentials."
             )
+            firebase_admin.initialize_app(options={"databaseURL": settings.firebase_database_url})
         else:
             firebase_admin.initialize_app(
-                cred,
-                options={"databaseURL": settings.firebase_database_url}
+                cred, options={"databaseURL": settings.firebase_database_url}
             )
         logger.info("Firebase application initialized successfully.")
     except ValueError as e:

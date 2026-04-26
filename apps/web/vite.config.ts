@@ -7,7 +7,7 @@ import react from '@vitejs/plugin-react'
 function chironAssetResolver() {
   return {
     name: 'chiron-asset-resolver',
-    resolveId(id) {
+    resolveId(id: string) {
       if (id.startsWith('chiron:asset/')) {
         const filename = id.replace('chiron:asset/', '')
         return path.resolve(__dirname, 'src/assets', filename)

@@ -306,7 +306,7 @@ export function QCResults({ result, onGenerate, onRedo }: QCResultsProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const getRefId = (num: number) => result.references[num - 1]?.id ?? null;
+  const getRefId = (num: number) => (result.references ?? [])[num - 1]?.id ?? null;
 
   const VIEW_MODES: { id: ViewMode; label: string; icon: ElementType }[] = [
     { id: "split", label: "Split", icon: Columns2 },
@@ -395,8 +395,8 @@ export function QCResults({ result, onGenerate, onRedo }: QCResultsProps) {
               </p>
               <div className="flex gap-4 flex-wrap">
                 {[
-                  { icon: BookMarked, text: `${result.references.length} references found` },
-                  { icon: TrendingUp, text: `${result.databases.length} databases scanned` },
+                  { icon: BookMarked, text: `${(result.references ?? []).length} references found` },
+                  { icon: TrendingUp, text: `${(result.databases ?? []).length} databases scanned` },
                   { icon: Calendar, text: `${result.scanDuration}s elapsed` }
                 ].map(({ icon: Ic, text }) => (
                   <div key={text} className="flex items-center gap-1.5">
@@ -412,7 +412,7 @@ export function QCResults({ result, onGenerate, onRedo }: QCResultsProps) {
               </div>
               {/* Database chips */}
               <div className="flex gap-1.5 flex-wrap mt-3">
-                {result.databases.map((db) => (
+                {(result.databases ?? []).map((db) => (
                   <span
                     key={db}
                     className="px-2 py-0.5 rounded text-slate-500"
@@ -510,7 +510,7 @@ export function QCResults({ result, onGenerate, onRedo }: QCResultsProps) {
         </motion.div>
 
         {/* ── QC INTELLIGENCE BRIEF ── */}
-        {result.references.length > 0 && (
+        {(result.references ?? []).length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -550,7 +550,7 @@ export function QCResults({ result, onGenerate, onRedo }: QCResultsProps) {
                   className="text-slate-600"
                   style={{ fontSize: "10px", fontFamily: "JetBrains Mono, monospace" }}
                 >
-                  · AI-generated · {result.references.length} citations
+                  · AI-generated · {(result.references ?? []).length} citations
                 </span>
               </div>
 
@@ -618,7 +618,7 @@ export function QCResults({ result, onGenerate, onRedo }: QCResultsProps) {
                           style={{ fontSize: "13px", fontFamily: "Inter, sans-serif" }}
                         >
                           {para.text}
-                          {para.citations.map((num) => {
+                          {(para.citations ?? []).map((num) => {
                             const refId = getRefId(num);
                             return refId ? (
                               <InlineCitation
@@ -649,7 +649,7 @@ export function QCResults({ result, onGenerate, onRedo }: QCResultsProps) {
                     >
                       CLOSEST REFERENCES
                     </p>
-                    {result.references.map((ref, idx) => (
+                    {(result.references ?? []).map((ref, idx) => (
                       <ReferenceCard
                         key={ref.id}
                         reference={ref}
@@ -688,7 +688,7 @@ export function QCResults({ result, onGenerate, onRedo }: QCResultsProps) {
                         style={{ fontSize: "14px", fontFamily: "Inter, sans-serif" }}
                       >
                         {para.text}
-                        {para.citations.map((num) => {
+                        {(para.citations ?? []).map((num) => {
                           const refId = getRefId(num);
                           return refId ? (
                             <InlineCitation
@@ -722,7 +722,7 @@ export function QCResults({ result, onGenerate, onRedo }: QCResultsProps) {
                         }}
                       >
                         {(() => {
-                          const ref = result.references.find((r) => r.id === hoveredRef);
+                          const ref = (result.references ?? []).find((r) => r.id === hoveredRef);
                           if (!ref) return null;
                           const typeConf = TYPE_CONFIG[ref.type];
                           return (
@@ -738,7 +738,7 @@ export function QCResults({ result, onGenerate, onRedo }: QCResultsProps) {
                                   fontWeight: 700
                                 }}
                               >
-                                {result.references.indexOf(ref) + 1}
+                                {(result.references ?? []).indexOf(ref) + 1}
                               </div>
                               <div>
                                 <p
@@ -803,9 +803,9 @@ export function QCResults({ result, onGenerate, onRedo }: QCResultsProps) {
                       fontFamily: "JetBrains Mono, monospace"
                     }}
                   >
-                    CLOSEST REFERENCES — {result.references.length} found
+                    CLOSEST REFERENCES — {(result.references ?? []).length} found
                   </p>
-                  {result.references.map((ref, idx) => (
+                  {(result.references ?? []).map((ref, idx) => (
                     <ReferenceCard key={ref.id} reference={ref} idx={idx} highlighted={false} />
                   ))}
                 </motion.div>

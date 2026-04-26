@@ -2,6 +2,8 @@
   "name": "@chiron/contracts",
   "private": true,
   "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "scripts": {
     "generate-contracts": "openapi-typescript ./openapi.json -o ./src/generated/api.ts",
     "build": "pnpm run generate-contracts",
