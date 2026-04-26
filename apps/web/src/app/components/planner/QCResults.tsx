@@ -196,7 +196,8 @@ function ReferenceCard({
   idx: number;
   highlighted: boolean;
 }) {
-  const typeConf = TYPE_CONFIG[reference.type];
+  const typeConf = TYPE_CONFIG[reference.type as keyof typeof TYPE_CONFIG] ?? TYPE_CONFIG.journal;
+
   return (
     <motion.div
       animate={{
@@ -651,12 +652,13 @@ export function QCResults({ result, onGenerate, onRedo }: QCResultsProps) {
                     </p>
                     {(result.references ?? []).map((ref, idx) => (
                       <ReferenceCard
-                        key={ref.id}
+                        key={`${ref.id}-${idx}`}
                         reference={ref}
                         idx={idx}
                         highlighted={hoveredRef === ref.id}
                       />
                     ))}
+
                   </div>
                 </motion.div>
               )}

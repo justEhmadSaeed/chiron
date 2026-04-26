@@ -3,7 +3,7 @@ from enum import StrEnum
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 def utc_now() -> datetime:
@@ -49,20 +49,60 @@ class ExperimentCreateRequest(BaseModel):
 
 
 class Reference(BaseModel):
-    id: str
-    title: str
-    authors: str
-    journal: str
-    year: int
-    doi: str
-    similarity: float
-    type: Literal["preprint", "journal", "review"]
+    model_config = {"extra": "ignore", "populate_by_name": True}
+
+    id: str = "unknown"
+    title: str = "Unknown"
+    authors: str = "Unknown"
+    journal: str = "Unknown"
+    year: int = 0
+    doi: str = ""
+    similarity: float = 0.0
+    type: str = "journal"
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_fields(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        # year: coerce anything non-int to 0
+        raw_year = data.get("year", 0)
+        try:
+            data = {**data, "year": int(raw_year)}
+        except (ValueError, TypeError):
+            data = {**data, "year": 0}
+        # map reference_type → type
+        if "type" not in data and "reference_type" in data:
+            data = {**data, "type": data["reference_type"]}
+        # authors / journal can be lists — join them
+        for field in ("authors", "journal"):
+            val = data.get(field)
+            if isinstance(val, list):
+                data = {**data, field: ", ".join(str(v) for v in val)}
+            elif val is None:
+                data = {**data, field: "Unknown"}
+        return data
 
 
 class QCSummaryParagraph(BaseModel):
-    text: str
+    model_config = {"extra": "ignore"}
+
+    text: str = ""
     citations: list[int] = Field(default_factory=list)
     continuation: str | None = None
+
+    @field_validator("citations", mode="before")
+    @classmethod
+    def _coerce_citations(cls, v: Any) -> list[int]:
+        if not isinstance(v, list):
+            return []
+        result = []
+        for item in v:
+            try:
+                result.append(int(item))
+            except (ValueError, TypeError):
+                pass
+        return result
 
 
 class SectionFeedback(BaseModel):
@@ -76,89 +116,171 @@ ExperimentFeedback = dict[str, SectionFeedback]
 
 
 class QCResult(BaseModel):
-    signal: Literal["not_found", "similar_work", "exact_match"]
-    noveltyScore: float
-    scanDuration: float
+    model_config = {"extra": "ignore"}
+
+    signal: str = "not_found"
+    noveltyScore: float = 0.0
+    scanDuration: float = 0.0
     databases: list[str] = Field(default_factory=list)
     references: list[Reference] = Field(default_factory=list)
     summary: list[QCSummaryParagraph] | None = None
     label_names: list[str] | None = None
 
+    @field_validator("signal", mode="before")
+    @classmethod
+    def _coerce_signal(cls, v: Any) -> str:
+        allowed = {"not_found", "similar_work", "exact_match"}
+        if v in allowed:
+            return v
+        return "not_found"
+
 
 class ProtocolStep(BaseModel):
-    id: int
-    title: str
-    detail: str
-    duration: str
-    critical: bool
+    model_config = {"extra": "ignore"}
+
+    id: int = 0
+    title: str = ""
+    detail: str = ""
+    duration: str = ""
+    critical: bool = False
     notes: str | None = None
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _coerce_id(cls, v: Any) -> int:
+        try:
+            return int(v)
+        except (ValueError, TypeError):
+            return 0
 
 
 class ProtocolPhase(BaseModel):
-    phase: str
-    weekRange: str
+    model_config = {"extra": "ignore"}
+
+    phase: str = ""
+    weekRange: str = ""
     steps: list[ProtocolStep] = Field(default_factory=list)
 
 
 class Material(BaseModel):
-    id: int
-    name: str
-    catalog: str
-    supplier: str
-    unitCost: float
-    qty: int
-    unit: str
-    total: float
-    category: str
-    leadTime: str
+    model_config = {"extra": "ignore"}
+
+    id: int = 0
+    name: str = ""
+    catalog: str = ""
+    supplier: str = ""
+    unitCost: float = 0.0
+    qty: int = 1
+    unit: str = ""
+    total: float = 0.0
+    category: str = ""
+    leadTime: str = ""
+
+    @field_validator("id", "qty", mode="before")
+    @classmethod
+    def _coerce_int(cls, v: Any) -> int:
+        try:
+            return int(v)
+        except (ValueError, TypeError):
+            return 0
+
+    @field_validator("unitCost", "total", mode="before")
+    @classmethod
+    def _coerce_float(cls, v: Any) -> float:
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return 0.0
 
 
 class BudgetCategory(BaseModel):
-    name: str
-    amount: float
-    color: str
-    percentage: float
+    model_config = {"extra": "ignore"}
+
+    name: str = ""
+    amount: float = 0.0
+    color: str = "#888888"
+    percentage: float = 0.0
+
+    @field_validator("amount", "percentage", mode="before")
+    @classmethod
+    def _coerce_float(cls, v: Any) -> float:
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return 0.0
 
 
 class Budget(BaseModel):
-    total: float
+    model_config = {"extra": "ignore"}
+
+    total: float = 0.0
     categories: list[BudgetCategory] = Field(default_factory=list)
+
+    @field_validator("total", mode="before")
+    @classmethod
+    def _coerce_total(cls, v: Any) -> float:
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return 0.0
 
 
 class TimelinePhase(BaseModel):
-    phase: str
-    start: float
-    duration: float
+    model_config = {"extra": "ignore"}
+
+    phase: str = ""
+    start: float = 0.0
+    duration: float = 0.0
     tasks: list[str] = Field(default_factory=list)
-    color: str
+    color: str = "#888888"
     dependencies: list[str] | None = None
 
 
 class ValidationMetric(BaseModel):
-    metric: str
-    target: str
-    method: str
-    critical: bool
-    timepoint: str
+    model_config = {"extra": "ignore"}
+
+    metric: str = ""
+    target: str = ""
+    method: str = ""
+    critical: bool = False
+    timepoint: str = ""
 
 
 class ExperimentPlanData(BaseModel):
-    title: str
-    question: str
-    createdAt: str
-    complexity: Literal["Low", "Medium", "High", "Very High"]
-    teamSize: int
-    totalWeeks: int
-    overview: str
-    hypothesis: str
+    model_config = {"extra": "ignore"}
+
+    title: str = ""
+    question: str = ""
+    createdAt: str = ""
+    complexity: str = "Medium"
+    teamSize: int = 1
+    totalWeeks: int = 1
+    overview: str = ""
+    hypothesis: str = ""
     protocol: list[ProtocolPhase] = Field(default_factory=list)
     materials: list[Material] = Field(default_factory=list)
-    budget: Budget
+    budget: Budget = Field(default_factory=Budget)
     timeline: list[TimelinePhase] = Field(default_factory=list)
     validation: list[ValidationMetric] = Field(default_factory=list)
 
+    @field_validator("teamSize", "totalWeeks", mode="before")
+    @classmethod
+    def _coerce_int(cls, v: Any) -> int:
+        try:
+            return int(v)
+        except (ValueError, TypeError):
+            return 1
+
+    @field_validator("complexity", mode="before")
+    @classmethod
+    def _coerce_complexity(cls, v: Any) -> str:
+        allowed = {"Low", "Medium", "High", "Very High"}
+        return v if v in allowed else "Medium"
+
 
 class ExperimentResponse(BaseModel):
+    model_config = {"extra": "ignore", "populate_by_name": True}
+
     experiment_id: str
     question: str
     status: ExperimentStatus

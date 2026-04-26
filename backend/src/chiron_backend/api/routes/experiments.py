@@ -1,12 +1,14 @@
 import asyncio
+import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from firebase_admin import db
 
-from chiron_backend.api.mock_data import MOCK_PLAN_DICT, MOCK_QC_RESULT_DICT
+from chiron_backend.agents.research.experiment_pipeline import run_experiment_pipeline
 from chiron_backend.common.models import (
     AgentEvent,
     ExperimentCreateRequest,
@@ -24,19 +26,43 @@ router = APIRouter(prefix="/api/experiments", tags=["experiments"])
 
 async def simulate_lqc_process(experiment_id: str, hub: Any) -> None:
     """
-    Simulates the LQC process with a delay, updates Firebase, and broadcasts an event.
+    Runs the real adversarial validation pipeline for the given experiment,
+    writes the QC result to Firebase, and broadcasts LQC_COMPLETED.
     """
     try:
-        # Wait to simulate "agent running"
-        await asyncio.sleep(8)
-
         ref = db.reference(f"experiments/{experiment_id}")
+        data = ref.get() or {}
+        hypothesis = data.get("question", "")
 
-        updated_data = {"status": ExperimentStatus.LQC_COMPLETED.value, "LQC": MOCK_QC_RESULT_DICT}
+        if not hypothesis:
+            logger.error(f"[LQC] No hypothesis found for experiment {experiment_id}")
+            return
 
-        ref.update(updated_data)
+        logger.info(f"[LQC] Running adversarial pipeline for experiment {experiment_id}")
 
-        # Broadcast via WebSocket
+        from chiron_backend.agents.research.graph import build_graph
+
+        graph = build_graph()
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor() as pool:
+            result = await loop.run_in_executor(
+                pool,
+                lambda: graph.invoke({
+                    "research_prompt": hypothesis,
+                    "experiment_id": experiment_id,
+                }),
+            )
+
+        from chiron_backend.common.models import QCResult
+        qc_dict = json.loads(result.get("final_client_report", "{}"))
+        qc_result = QCResult.model_validate(qc_dict)
+        qc_to_save = qc_result.model_dump()
+        logger.info(f"[LQC] Saving QCResult — signal={qc_to_save.get('signal')}, "
+                    f"noveltyScore={qc_to_save.get('noveltyScore')}, "
+                    f"references={len(qc_to_save.get('references', []))}")
+        ref.update({"status": ExperimentStatus.LQC_COMPLETED.value, "LQC": qc_to_save})
+
+
         event = AgentEvent(
             run_id=experiment_id,
             event_type="LQC_COMPLETED",
@@ -45,40 +71,50 @@ async def simulate_lqc_process(experiment_id: str, hub: Any) -> None:
                 "status": ExperimentStatus.LQC_COMPLETED.value,
             },
         )
-
         await hub.broadcast(event)
-        logger.info(f"Broadcasted LQC_COMPLETED for {experiment_id}")
+        logger.info(f"[LQC] Broadcasted LQC_COMPLETED for {experiment_id}")
 
     except Exception as e:
-        logger.error(f"Error in simulate_lqc_process for {experiment_id}: {e}")
+        logger.error(f"[LQC] Error in lqc_process for {experiment_id}: {e}")
 
 
 async def simulate_planning_process(experiment_id: str, hub: Any) -> None:
     """
-    Simulates the planning process with a delay, updates Firebase, and broadcasts an event.
+    Runs the real experiment design pipeline for the given experiment,
+    writes the plan to Firebase, and broadcasts PLAN_COMPLETED.
     """
     try:
-        # Wait to simulate "agent planning"
-        await asyncio.sleep(10)
-
         ref = db.reference(f"experiments/{experiment_id}")
+        data = ref.get() or {}
+        hypothesis = data.get("question", "")
 
-        updated_data = {"status": ExperimentStatus.COMPLETED.value, "plan": MOCK_PLAN_DICT}
+        if not hypothesis:
+            logger.error(f"[Plan] No hypothesis found for experiment {experiment_id}")
+            return
 
-        ref.update(updated_data)
+        logger.info(f"[Plan] Running experiment design pipeline for experiment {experiment_id}")
 
-        # Broadcast via WebSocket
+        
+
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor() as pool:
+            plan_dict = await loop.run_in_executor(
+                pool,
+                lambda: run_experiment_pipeline(hypothesis),
+            )
+
+        ref.update({"status": ExperimentStatus.COMPLETED.value, "plan": plan_dict})
+
         event = AgentEvent(
             run_id=experiment_id,
             event_type="PLAN_COMPLETED",
             payload={"experiment_id": experiment_id, "status": ExperimentStatus.COMPLETED.value},
         )
-
         await hub.broadcast(event)
-        logger.info(f"Broadcasted PLAN_COMPLETED for {experiment_id}")
+        logger.info(f"[Plan] Broadcasted PLAN_COMPLETED for {experiment_id}")
 
     except Exception as e:
-        logger.error(f"Error in simulate_planning_process for {experiment_id}: {e}")
+        logger.error(f"[Plan] Error in planning_process for {experiment_id}: {e}")
 
 
 @router.post("/generate", response_model=ExperimentResponse)

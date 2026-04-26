@@ -284,7 +284,7 @@ function ExperimentViewer() {
             </motion.div>
           )}
 
-          {stage === "qc_results" && experiment?.LQC && (
+          {stage === "qc_results" && (
             <motion.div
               key="qc_results"
               initial={{ opacity: 0, y: 20 }}
@@ -293,14 +293,27 @@ function ExperimentViewer() {
               transition={{ duration: 0.4 }}
               className="w-full h-full"
             >
-              <QCResults
-                question={experiment.question || ""}
-                result={experiment.LQC as QCResult}
-                onGenerate={handleGenerate}
-                onRedo={handleRedo}
-              />
+              {experiment?.LQC ? (
+                <QCResults
+                  question={experiment.question || ""}
+                  result={experiment.LQC as QCResult}
+                  onGenerate={handleGenerate}
+                  onRedo={handleRedo}
+                />
+              ) : (
+                <div
+                  className="flex flex-col items-center justify-center h-full w-full"
+                  style={{ background: "#020c1b" }}
+                >
+                  <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+                  <span className="font-mono text-sm text-cyan-400/80 mt-4">
+                    Loading QC Results...
+                  </span>
+                </div>
+              )}
             </motion.div>
           )}
+
 
           {stage === "planning" && (
             <motion.div
