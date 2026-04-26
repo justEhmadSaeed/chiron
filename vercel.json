@@ -1,0 +1,6 @@
+{
+  "buildCommand": "pnpm exec turbo run build --filter=@chiron/web",
+  "outputDirectory": "apps/web/dist",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
