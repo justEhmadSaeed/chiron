@@ -1,3 +1,14 @@
+"""
+Pinecone Retriever
+====================
+Namespacing strategy:
+  - Adversarial RAG search cache : namespace = "rag_{experiment_id}"
+  - Adversarial agent memory      : namespace = "memory_{experiment_id}"
+  - Hypothesis index              : namespace = "hypotheses"  (shared, one doc per hypothesis)
+"""
+
+from __future__ import annotations
+
 import time
 import uuid
 import logging
@@ -9,179 +20,270 @@ from chiron_backend.common.config import get_settings
 logger = logging.getLogger("research_agent")
 settings = get_settings()
 
-# Initialize Pinecone client
-if settings.pinecone_api_key:
-    pc = Pinecone(api_key=settings.pinecone_api_key)
-    
-    # Auto-create the index if it doesn't exist, or recreate if wrong dimension
+_EMBEDDING_DIM = 3072
+_HYPOTHESIS_NAMESPACE = "hypotheses"
+
+# ---------------------------------------------------------------------------
+#  Pinecone client init
+# ---------------------------------------------------------------------------
+
+_pc: Pinecone | None = None
+_pinecone_index = None
+
+
+def _get_index():
+    global _pc, _pinecone_index
+    if _pinecone_index is not None:
+        return _pinecone_index
+
+    if not settings.pinecone_api_key:
+        logger.warning("Pinecone API key not set — retriever disabled.")
+        return None
+
+    _pc = Pinecone(api_key=settings.pinecone_api_key)
     index_name = settings.pinecone_index_name
-    
-    if index_name in pc.list_indexes().names():
-        info = pc.describe_index(index_name)
-        if info.dimension != 3072:
-            logger.warning(f"Pinecone index '{index_name}' has wrong dimension ({info.dimension}). Deleting and recreating with 3072...")
-            pc.delete_index(index_name)
-            while index_name in pc.list_indexes().names():
+
+    existing = _pc.list_indexes().names()
+    if index_name in existing:
+        info = _pc.describe_index(index_name)
+        if info.dimension != _EMBEDDING_DIM:
+            logger.warning(f"Index '{index_name}' has wrong dimension ({info.dimension}). Recreating...")
+            _pc.delete_index(index_name)
+            while index_name in _pc.list_indexes().names():
                 time.sleep(1)
-                
-    if index_name not in pc.list_indexes().names():
-        logger.info(f"Creating Pinecone index '{index_name}' (dimension 3072)...")
-        pc.create_index(
+            existing = []
+
+    if index_name not in existing:
+        logger.info(f"Creating Pinecone index '{index_name}' (dim={_EMBEDDING_DIM})...")
+        _pc.create_index(
             name=index_name,
-            dimension=3072, # Gemini embeddings are 3072 dims
+            dimension=_EMBEDDING_DIM,
             metric="cosine",
-            spec=ServerlessSpec(
-                cloud="aws",
-                region="us-east-1"
-            )
+            spec=ServerlessSpec(cloud="aws", region="us-east-1"),
         )
-        # Wait for index to be ready
-        while not pc.describe_index(index_name).status['ready']:
+        while not _pc.describe_index(index_name).status["ready"]:
             time.sleep(1)
-            
-    pinecone_index = pc.Index(index_name)
-else:
-    logger.warning("Pinecone API key not found. Retriever will fail if called.")
-    pc = None
-    pinecone_index = None
 
-# Hardcode the text-embedding-004 model explicitly as requested
-gemini_embedder = GoogleGenerativeAIEmbeddings(model=settings.embedding_model, google_api_key=settings.gemini_api_key)
+    _pinecone_index = _pc.Index(index_name)
+    return _pinecone_index
 
-def store_and_retrieve_rag_chunks(query_text: str, raw_search_results: list[dict], top_k: int = 3) -> list[str]:
+
+_embedder: GoogleGenerativeAIEmbeddings | None = None
+
+
+def _get_embedder() -> GoogleGenerativeAIEmbeddings:
+    global _embedder
+    if _embedder is None:
+        _embedder = GoogleGenerativeAIEmbeddings(
+            model=settings.embedding_model,
+            google_api_key=settings.gemini_api_key,
+        )
+    return _embedder
+
+
+# ---------------------------------------------------------------------------
+#  RAG: Tavily search results → Pinecone → retrieve top-k chunks
+# ---------------------------------------------------------------------------
+
+def store_and_retrieve_rag_chunks(
+    query_text: str,
+    raw_search_results: list[dict],
+    experiment_id: str,
+    top_k: int = 5,
+) -> list[str]:
     """
-    Takes raw Tavily search results (dict with 'url' and 'content'),
-    chunks the content, embeds it into Pinecone, and returns the top-K semantic matches for the query.
+    Chunks Tavily results, upserts them into a per-run RAG namespace,
+    then retrieves the top-k semantically relevant chunks.
+    Namespace: rag_{experiment_id}
     """
-    if not pinecone_index:
-        logger.error("Pinecone index not initialized.")
+    index = _get_index()
+    if not index:
         return []
 
-    # 1. Combine and chunk raw text
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
-    
-    docs = []
-    metadata = []
-    ids = []
-    
+    embedder = _get_embedder()
+    namespace = f"rag_{experiment_id}"
+    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
     timestamp = int(time.time())
-    
+
+    docs: list[str] = []
+    metadata: list[dict] = []
+    ids: list[str] = []
+
     for i, res in enumerate(raw_search_results):
-        content = res.get('content', '')
-        url = res.get('url', '')
-        title = res.get('title', 'Unknown Title')
-        score = res.get('score', 0.0)
-        pub_date = res.get('published_date', 'Unknown Date')
-        
+        content = res.get("raw_content") or res.get("content", "")
         if not content:
             continue
-        
-        chunks = text_splitter.split_text(content)
+        chunks = splitter.split_text(content)
         for j, chunk in enumerate(chunks):
             docs.append(chunk)
-            # Store the text chunk in metadata so we can retrieve it later
             metadata.append({
-                "url": url, 
-                "title": title, 
-                "score": score, 
-                "published_date": pub_date, 
-                "source_index": i,
-                "text": chunk
+                "url": res.get("url", ""),
+                "title": res.get("title", ""),
+                "score": float(res.get("score", 0.0)),
+                "published_date": res.get("published_date", ""),
+                "experiment_id": experiment_id,
+                "text": chunk,
             })
-            ids.append(f"doc_{timestamp}_{i}_chunk_{j}")
-            
+            ids.append(f"rag_{experiment_id}_{timestamp}_{i}_{j}")
+
     if not docs:
+        logger.warning(f"[RAG:{namespace}] No content to index.")
         return []
 
-    # 2. Namespace in Pinecone
-    namespace = "tavily_search_cache"
-        
-    logger.info(f"Pinecone: Storing {len(docs)} new document chunks from Tavily.")
-    
-    # 3. Add chunks to Pinecone
-    embeddings = []
-    batch_size = 50
-    for i in range(0, len(docs), batch_size):
-        batch_docs = docs[i:i + batch_size]
-        batch_emb = gemini_embedder.embed_documents(batch_docs)
-        embeddings.extend(batch_emb)
-    
-    vectors = []
-    for i in range(len(docs)):
-        vectors.append({
-            "id": ids[i],
-            "values": embeddings[i],
-            "metadata": metadata[i]
-        })
-        
-    # Upsert in batches of 100
+    logger.info(f"[RAG:{namespace}] Upserting {len(docs)} chunks...")
+    embeddings: list = []
+    for i in range(0, len(docs), 50):
+        embeddings.extend(embedder.embed_documents(docs[i : i + 50]))
+
+    vectors = [
+        {"id": ids[i], "values": embeddings[i], "metadata": metadata[i]}
+        for i in range(len(docs))
+    ]
     for i in range(0, len(vectors), 100):
-        pinecone_index.upsert(vectors=vectors[i:i+100], namespace=namespace)
-    
-    # 4. Query the collection 
-    query_emb = gemini_embedder.embed_query(query_text)
-    
-    results = pinecone_index.query(
-        vector=query_emb,
-        top_k=top_k, # Pinecone handles if we ask for more than available natively
-        include_metadata=True,
-        namespace=namespace
+        index.upsert(vectors=vectors[i : i + 100], namespace=namespace)
+
+    query_emb = embedder.embed_query(query_text)
+    results = index.query(
+        vector=query_emb, top_k=top_k, include_metadata=True, namespace=namespace
     )
-    
-    # 5. Format the retrieved chunks for the LLM
-    retrieved_chunks = []
+
+    retrieved: list[str] = []
     for match in results.get("matches", []):
         meta = match.get("metadata", {})
-        chunk_text = f"Title: {meta.get('title', 'N/A')}\nSource URL: {meta.get('url', 'N/A')}\nPublish Date: {meta.get('published_date', 'N/A')}\nTavily Relevance Score: {meta.get('score', 'N/A')}\nContent: {meta.get('text', '')}"
-        retrieved_chunks.append(chunk_text)
-            
-    return retrieved_chunks
+        retrieved.append(
+            f"Title: {meta.get('title', 'N/A')}\n"
+            f"Source URL: {meta.get('url', 'N/A')}\n"
+            f"Publish Date: {meta.get('published_date', 'N/A')}\n"
+            f"Tavily Score: {meta.get('score', 'N/A')}\n"
+            f"Content: {meta.get('text', '')}"
+        )
+
+    logger.info(f"[RAG:{namespace}] Retrieved {len(retrieved)} chunks.")
+    return retrieved
 
 
-def store_agent_memory(agent_id: str, hypothesis_text: str, reasoning: str, status: str):
+# ---------------------------------------------------------------------------
+#  Agent memory: store full adversarial reasoning per experiment run
+# ---------------------------------------------------------------------------
+
+def store_agent_memory(
+    experiment_id: str,
+    hypothesis_text: str,
+    reasoning: str,
+    signal: str,
+    novelty_score: float,
+    references_summary: str,
+) -> None:
     """
-    Stores the adversarial agent's reasoning into a specific Pinecone namespace for long-term memory.
+    Stores the full adversarial agent reasoning for a hypothesis run.
+    Namespace: memory_{experiment_id}
+    Vector ID: experiment_id (one memory doc per run, upserted = idempotent)
     """
-    if not pinecone_index:
+    index = _get_index()
+    if not index:
         return
 
-    namespace = f"memory_{agent_id}"
-    doc = f"Past Hypothesis Evaluated: {hypothesis_text}\nConclusion Status: {status}\nAgent Reasoning: {reasoning}"
-    emb = gemini_embedder.embed_documents([doc])[0]
-    
-    pinecone_index.upsert(
-        vectors=[{
-            "id": str(uuid.uuid4()),
-            "values": emb,
-            "metadata": {"status": status, "text": doc}
-        }],
-        namespace=namespace
+    namespace = f"memory_{experiment_id}"
+    doc = (
+        f"Hypothesis: {hypothesis_text}\n"
+        f"Signal: {signal}\n"
+        f"Novelty Score: {novelty_score}\n"
+        f"References: {references_summary}\n"
+        f"Agent Reasoning: {reasoning}"
     )
+    emb = _get_embedder().embed_documents([doc])[0]
+    index.upsert(
+        vectors=[{
+            "id": experiment_id,
+            "values": emb,
+            "metadata": {
+                "hypothesis": hypothesis_text,
+                "signal": signal,
+                "novelty_score": novelty_score,
+                "text": doc,
+            },
+        }],
+        namespace=namespace,
+    )
+    logger.info(f"[Memory:{namespace}] Stored full reasoning for experiment '{experiment_id}'.")
 
-def retrieve_agent_memory(agent_id: str, query_text: str, top_k: int = 2) -> list[str]:
+
+def retrieve_agent_memory(experiment_id: str, query_text: str, top_k: int = 2) -> list[str]:
     """
-    Retrieves the most relevant past reasonings from the agent's memory.
+    Retrieves relevant past reasonings from the experiment's memory namespace.
     """
-    if not pinecone_index:
+    index = _get_index()
+    if not index:
         return []
 
-    namespace = f"memory_{agent_id}"
-    query_emb = gemini_embedder.embed_query(query_text)
-    
+    namespace = f"memory_{experiment_id}"
+    query_emb = _get_embedder().embed_query(query_text)
     try:
-        results = pinecone_index.query(
-            vector=query_emb,
-            top_k=top_k,
-            include_metadata=True,
-            namespace=namespace
+        results = index.query(
+            vector=query_emb, top_k=top_k, include_metadata=True, namespace=namespace
         )
-        
-        retrieved = []
-        for match in results.get("matches", []):
-            meta = match.get("metadata", {})
-            if "text" in meta:
-                retrieved.append(meta["text"])
-        return retrieved
+        return [
+            m["metadata"]["text"]
+            for m in results.get("matches", [])
+            if m.get("metadata", {}).get("text")
+        ]
     except Exception as e:
-        logger.error(f"Pinecone memory retrieval error: {e}")
+        logger.error(f"[Memory:{namespace}] Retrieval error: {e}")
+        return []
+
+
+# ---------------------------------------------------------------------------
+#  Hypothesis index: one vector per hypothesis, keyed by experiment UUID
+# ---------------------------------------------------------------------------
+
+def store_hypothesis_vector(experiment_id: str, hypothesis_text: str) -> None:
+    """
+    Stores the hypothesis text as a single vector in the shared 'hypotheses' namespace.
+    Vector ID = experiment_id, so each document is uniquely tied to its Firebase UUID.
+    Safe to call multiple times — Pinecone upsert is idempotent.
+    Namespace: hypotheses
+    """
+    index = _get_index()
+    if not index:
+        return
+
+    emb = _get_embedder().embed_documents([hypothesis_text])[0]
+    index.upsert(
+        vectors=[{
+            "id": experiment_id,
+            "values": emb,
+            "metadata": {
+                "hypothesis": hypothesis_text,
+                "experiment_id": experiment_id,
+            },
+        }],
+        namespace=_HYPOTHESIS_NAMESPACE,
+    )
+    logger.info(f"[Hypothesis Index] Stored hypothesis for experiment '{experiment_id}'.")
+
+
+def find_similar_hypotheses(query_hypothesis: str, top_k: int = 3) -> list[dict]:
+    """
+    Retrieves the most semantically similar past hypotheses from the index.
+    Returns a list of dicts with 'experiment_id', 'hypothesis', and 'score'.
+    """
+    index = _get_index()
+    if not index:
+        return []
+
+    query_emb = _get_embedder().embed_query(query_hypothesis)
+    try:
+        results = index.query(
+            vector=query_emb, top_k=top_k, include_metadata=True, namespace=_HYPOTHESIS_NAMESPACE
+        )
+        return [
+            {
+                "experiment_id": m.get("id"),
+                "hypothesis": m.get("metadata", {}).get("hypothesis", ""),
+                "score": m.get("score", 0.0),
+            }
+            for m in results.get("matches", [])
+        ]
+    except Exception as e:
+        logger.error(f"[Hypothesis Index] Query error: {e}")
         return []

@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Any, Dict
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -13,8 +14,14 @@ from chiron_backend.agents.research.schemas import (
     QCRouterOutput,
 )
 from chiron_backend.agents.research.agents_config import AGENT_REGISTRY, AgentName
-from chiron_backend.agents.research.retriever import store_and_retrieve_rag_chunks, store_agent_memory, retrieve_agent_memory
+from chiron_backend.agents.research.retriever import (
+    store_and_retrieve_rag_chunks,
+    store_agent_memory,
+    retrieve_agent_memory,
+    store_hypothesis_vector,
+)
 
+logger = logging.getLogger("research_agent")
 settings = get_settings()
 
 llm = ChatGoogleGenerativeAI(
@@ -25,156 +32,172 @@ llm = ChatGoogleGenerativeAI(
 
 tavily_client = TavilyClient(api_key=settings.tavily_api_key)
 
+
 def pimo_generator_node(state: AgentState) -> Dict[str, Any]:
     prompt = state.get("research_prompt", "")
     config = AGENT_REGISTRY[AgentName.PIMO_Architect]
-    
-    system_prompt = f"{config.system_prompt_role}\n\nObjective: {config.objective}\n\nExecution Instructions:\n{config.execution_instructions}"
-    
+
+    system_prompt = (
+        f"{config.system_prompt_role}\n\n"
+        f"Objective: {config.objective}\n\n"
+        f"Execution Instructions:\n{config.execution_instructions}"
+    )
+
     structured_llm = llm.with_structured_output(PIMOArchitectOutput)
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content=prompt)
+        HumanMessage(content=prompt),
     ]
-    
+
     result = structured_llm.invoke(messages)
-    
-    return {
-        "pimo_json": result.model_dump()
-    }
+    return {"pimo_json": result.model_dump()}
+
 
 def adversarial_evaluator_node(state: AgentState) -> Dict[str, Any]:
-    # Use the original research prompt as the hypothesis string context
     hypothesis = state.get("research_prompt", "")
+    experiment_id = state.get("experiment_id", "")
     pimo_json = state.get("pimo_json", {})
-    
+
     config = AGENT_REGISTRY[AgentName.ADVERSARIAL_AGENT]
-    system_prompt = f"{config.system_prompt_role}\n\nObjective: {config.objective}\n\nExecution Instructions:\n{config.execution_instructions}"
-    
-    # 1. Search Tavily using the combination of PIMO components to get literature
-    search_query = f"{pimo_json.get('population', '')} {pimo_json.get('intervention', '')} {pimo_json.get('mechanism', '')} {pimo_json.get('outcome', '')}".strip()
-    if not search_query:
-        search_query = hypothesis
-        
+    system_prompt = (
+        f"{config.system_prompt_role}\n\n"
+        f"Objective: {config.objective}\n\n"
+        f"Execution Instructions:\n{config.execution_instructions}"
+    )
+
+    search_query = " ".join(filter(None, [
+        pimo_json.get("population", ""),
+        pimo_json.get("intervention", ""),
+        pimo_json.get("mechanism", ""),
+        pimo_json.get("outcome", ""),
+    ])).strip() or hypothesis
+
+    top_chunks: list[str] = []
+    raw_results: list[dict] = []
     try:
-        import logging
-        logger = logging.getLogger("research_agent")
-        logger.info(f"Tavily: Scraping for query -> '{search_query}'")
-        search_res = tavily_client.search(query=search_query, search_depth="advanced", include_raw_content=True)
-        raw_results = search_res.get('results', [])
-        logger.info(f"Tavily: Scraped {len(raw_results)} domains successfully.")
-        
-        formatted_results = []
-        for r in raw_results:
-            content = r.get('raw_content') or r.get('content', '')
-            formatted_results.append({
-                "content": content, 
-                "url": r.get('url', ''),
-                "title": r.get('title', 'Unknown Title'),
-                "score": r.get('score', 0.0),
-                "published_date": r.get('published_date', 'Unknown Date')
-            })
-            
-        top_chunks = store_and_retrieve_rag_chunks(query_text=search_query, raw_search_results=formatted_results, top_k=5)
-        logger.info(f"Tavily/Chroma: Brought {len(top_chunks)} top relevant chunks into LLM context.")
+        logger.info(f"Tavily: Searching → '{search_query}'")
+        search_res = tavily_client.search(
+            query=search_query, search_depth="advanced", include_raw_content=True
+        )
+        raw_results = search_res.get("results", [])
+        logger.info(f"Tavily: Got {len(raw_results)} results.")
+
+        top_chunks = store_and_retrieve_rag_chunks(
+            query_text=search_query,
+            raw_search_results=raw_results,
+            experiment_id=experiment_id,
+            top_k=5,
+        )
+        logger.info(f"RAG: Retrieved {len(top_chunks)} chunks.")
     except Exception as e:
-        import logging
-        logging.getLogger("research_agent").error(f"Tavily/Chroma Error: {e}")
-        top_chunks = []
-        
+        logger.error(f"Tavily/RAG Error: {e}")
+
     evidence_str = "\n\n".join(top_chunks) if top_chunks else "No literature found."
-    
-    # 2. Memory Context
-    past_memory_chunks = retrieve_agent_memory(agent_id="adversarial_evaluator", query_text=search_query, top_k=2)
-    memory_str = "\n\n".join(past_memory_chunks) if past_memory_chunks else "No past memory available for this context."
-    
+
+    # Pull any prior memory for this exact run (e.g. retries)
+    past_memory = retrieve_agent_memory(experiment_id, search_query, top_k=2)
+    memory_str = "\n\n".join(past_memory) if past_memory else "No prior memory for this run."
+
     human_msg = (
         f"Hypothesis to Evaluate:\n{hypothesis}\n\n"
         f"PIMO Components:\n{json.dumps(pimo_json, indent=2)}\n\n"
-        f"Past Agent Memory:\n{memory_str}\n\n"
+        f"Prior Agent Memory:\n{memory_str}\n\n"
         f"Retrieved Evidence Chunks:\n{evidence_str}"
     )
-    
+
     structured_llm = llm.with_structured_output(AdversarialAgentOutput)
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content=human_msg)
+        HumanMessage(content=human_msg),
     ]
-    
+
     eval_result = structured_llm.invoke(messages)
-    
-    store_agent_memory(
-        agent_id="adversarial_evaluator",
-        hypothesis_text=hypothesis,
-        reasoning=f"Novelty Score: {eval_result.noveltyScore}. Signal: {eval_result.signal}.",
-        status=eval_result.signal
-    )
-    
+
+    # Build a concise references summary for memory storage
+    refs_summary = "; ".join(
+        f"{r.get('title', 'Unknown')} ({r.get('year', '?')}) — similarity {r.get('similarity', 0.0):.2f}"
+        for r in (eval_result.references if eval_result.references else [])
+    ) or "No references."
+
+    # Store the full reasoning + metadata in the experiment's memory namespace
+    if experiment_id:
+        store_agent_memory(
+            experiment_id=experiment_id,
+            hypothesis_text=hypothesis,
+            reasoning=eval_result.reasoning,
+            signal=eval_result.signal,
+            novelty_score=eval_result.noveltyScore,
+            references_summary=refs_summary,
+        )
+
+        # Also index the hypothesis itself so it's searchable across all runs
+        store_hypothesis_vector(experiment_id=experiment_id, hypothesis_text=hypothesis)
+
     return {
         "adversarial_json": eval_result.model_dump(),
-        "search_evidence": evidence_str
+        "search_evidence": evidence_str,
     }
+
 
 def remediation_agent_node(state: AgentState) -> Dict[str, Any]:
     adversarial_json = state.get("adversarial_json", {})
     evidence_str = state.get("search_evidence", "")
-    
+
     config = AGENT_REGISTRY[AgentName.REMEDIATION_AGENT]
-    system_prompt = f"{config.system_prompt_role}\n\nObjective: {config.objective}\n\nExecution Instructions:\n{config.execution_instructions}"
-    
+    system_prompt = (
+        f"{config.system_prompt_role}\n\n"
+        f"Objective: {config.objective}\n\n"
+        f"Execution Instructions:\n{config.execution_instructions}"
+    )
+
     human_msg = (
         f"Signal: {adversarial_json.get('signal')}\n"
         f"Novelty Score: {adversarial_json.get('noveltyScore')}\n"
         f"References:\n{json.dumps(adversarial_json.get('references', []), indent=2)}\n\n"
         f"Full Retrieved Evidence Context:\n{evidence_str}"
     )
-    
+
     structured_llm = llm.with_structured_output(RemediationAgentOutput)
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content=human_msg)
+        HumanMessage(content=human_msg),
     ]
-    
+
     result = structured_llm.invoke(messages)
-    
+
     if result is None:
-        import logging
-        logging.getLogger("research_agent").warning("RemediationAgent: Structured LLM failed to parse response, using fallback standard invoke.")
-        fallback_res = llm.invoke(messages)
-        sug_text = fallback_res.content if hasattr(fallback_res, "content") else str(fallback_res)
+        logger.warning("RemediationAgent: Structured output failed, using fallback.")
+        fallback = llm.invoke(messages)
+        sug_text = fallback.content if hasattr(fallback, "content") else str(fallback)
     else:
         sug_text = result.suggestion
-        
-    return {
-        "remediation_suggestion": sug_text
-    }
+
+    return {"remediation_suggestion": sug_text}
+
 
 def qc_router_node(state: AgentState) -> Dict[str, Any]:
-    # QC Router acts as final report LLM as requested by user
     adversarial_json = state.get("adversarial_json", {})
     suggestion = state.get("remediation_suggestion", None)
-    
+
     config = AGENT_REGISTRY[AgentName.QC_ROUTER]
-    
-    # We pass the adversarial fields and the suggestion to generate the final QCResult
-    structured_llm = llm.with_structured_output(QCRouterOutput)
-    
-    system_prompt = f"{config.system_prompt_role}\n\nObjective: {config.objective}\n\nExecution Instructions:\n{config.execution_instructions}"
-    
+    system_prompt = (
+        f"{config.system_prompt_role}\n\n"
+        f"Objective: {config.objective}\n\n"
+        f"Execution Instructions:\n{config.execution_instructions}"
+    )
+
     human_msg = (
         f"Adversarial Output:\n{json.dumps(adversarial_json, indent=2)}\n\n"
         f"Remediation Suggestion (if any):\n{suggestion}"
     )
-    
+
+    structured_llm = llm.with_structured_output(QCRouterOutput)
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content=human_msg)
+        HumanMessage(content=human_msg),
     ]
-    
+
     result = structured_llm.invoke(messages)
-    
     final_dict = result.model_dump()
-    
-    return {
-        "final_client_report": json.dumps(final_dict, indent=2, ensure_ascii=False)
-    }
+
+    return {"final_client_report": json.dumps(final_dict, indent=2, ensure_ascii=False)}
