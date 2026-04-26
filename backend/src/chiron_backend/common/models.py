@@ -56,7 +56,7 @@ class Reference(BaseModel):
     year: int
     doi: str
     similarity: float
-    type: Literal['preprint', 'journal', 'review']
+    type: Literal["preprint", "journal", "review"]
 
 
 class QCSummaryParagraph(BaseModel):
@@ -65,8 +65,15 @@ class QCSummaryParagraph(BaseModel):
     continuation: str | None = None
 
 
+class ExperimentFeedback(BaseModel):
+    rating: int
+    issue_tags: list[str] = Field(default_factory=list)
+    annotation: str
+    corrections: str
+
+
 class QCResult(BaseModel):
-    signal: Literal['not_found', 'similar_work', 'exact_match']
+    signal: Literal["not_found", "similar_work", "exact_match"]
     noveltyScore: float
     scanDuration: float
     databases: list[str] = Field(default_factory=list)
@@ -136,7 +143,7 @@ class ExperimentPlanData(BaseModel):
     title: str
     question: str
     createdAt: str
-    complexity: Literal['Low', 'Medium', 'High', 'Very High']
+    complexity: Literal["Low", "Medium", "High", "Very High"]
     teamSize: int
     totalWeeks: int
     overview: str
@@ -155,3 +162,4 @@ class ExperimentResponse(BaseModel):
     created_at: str
     LQC: QCResult | None = Field(default=None, alias="LQC")
     plan: ExperimentPlanData | None = None
+    feedback: ExperimentFeedback | None = None

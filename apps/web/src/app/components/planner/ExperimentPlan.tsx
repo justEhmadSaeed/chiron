@@ -41,10 +41,7 @@ import {
 import { PLANNER_NAV_SECTIONS, REVIEW_TAGS } from "./constants";
 import { MolecularCanvas } from "./MolecularCanvas";
 import type { ExperimentPlanData, QCResult, SectionReview } from "./types";
-import {
-  downloadMarkdownFile,
-  generateMarkdownFromPlan
-} from "./utils/generateMarkdownFromPlan";
+import { downloadMarkdownFile, generateMarkdownFromPlan } from "./utils/generateMarkdownFromPlan";
 
 interface ExperimentPlanProps {
   plan: ExperimentPlanData;
@@ -437,7 +434,9 @@ export function ExperimentPlan({
     setShowCoachMark(false);
     try {
       localStorage.setItem("chiron_review_onboarded", "1");
-    } catch {}
+    } catch {
+      console.error("Failed to save coach mark to localStorage");
+    }
   }, []);
 
   const toggleReviewMode = useCallback(() => {
@@ -482,7 +481,7 @@ export function ExperimentPlan({
     return () => observer.disconnect();
   }, []);
 
-  const sortedMaterials = [...plan.materials].sort((a, b) => {
+  const sortedMaterials = [...(plan.materials ?? [])].sort((a, b) => {
     if (materialSort === "cost") return b.total - a.total;
     if (materialSort === "name") return a.name.localeCompare(b.name);
     return a.category.localeCompare(b.category);
@@ -648,7 +647,7 @@ export function ExperimentPlan({
                 {plan.title}
               </p>
               <div className="flex items-center gap-2 mt-0.5">
-                <NoveltyBadge signal={qcResult.signal} />
+                <NoveltyBadge signal={qcResult?.signal ?? "not_found"} />
                 <ComplexityBadge level={plan.complexity} />
                 <span
                   className="text-slate-600"
@@ -950,7 +949,7 @@ export function ExperimentPlan({
             onReviewSave={handleReviewSave}
           >
             <div className="space-y-6">
-              {plan.protocol.map((phase) => (
+              {(plan.protocol ?? []).map((phase) => (
                 <div key={phase.phase}>
                   <div className="flex items-center gap-3 mb-3">
                     <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.06)" }} />
@@ -974,7 +973,7 @@ export function ExperimentPlan({
                   </div>
 
                   <div className="space-y-2">
-                    {phase.steps.map((step) => {
+                    {(phase.steps ?? []).map((step) => {
                       const isExpanded = expandedSteps.includes(step.id);
                       return (
                         <div
@@ -1142,7 +1141,8 @@ export function ExperimentPlan({
                     className="text-cyan-400"
                     style={{ fontSize: "12px", fontFamily: "JetBrains Mono, monospace" }}
                   >
-                    Total: ${plan.materials.reduce((s, m) => s + m.total, 0).toLocaleString()}
+                    Total: $
+                    {(plan.materials ?? []).reduce((s, m) => s + m.total, 0).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -1303,7 +1303,7 @@ export function ExperimentPlan({
                         formatter={(v: number) => [`$${v.toLocaleString()}`, ""]}
                       />
                       <Bar dataKey="amount" radius={[0, 4, 4, 0]}>
-                        {plan.budget.categories.map((cat) => (
+                        {(plan.budget.categories ?? []).map((cat) => (
                           <Cell key={cat.name} fill={cat.color} opacity={0.85} />
                         ))}
                       </Bar>
@@ -1332,14 +1332,14 @@ export function ExperimentPlan({
                           paddingAngle={2}
                           strokeWidth={0}
                         >
-                          {plan.budget.categories.map((cat) => (
+                          {(plan.budget.categories ?? []).map((cat) => (
                             <Cell key={cat.name} fill={cat.color} opacity={0.85} />
                           ))}
                         </Pie>
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="space-y-1.5">
-                      {plan.budget.categories.map((cat) => (
+                      {(plan.budget.categories ?? []).map((cat) => (
                         <div key={cat.name} className="flex items-center gap-2">
                           <div
                             className="w-2 h-2 rounded-full shrink-0"
@@ -1417,7 +1417,7 @@ export function ExperimentPlan({
                 </div>
 
                 {/* Phase rows */}
-                {plan.timeline.map((phase) => (
+                {(plan.timeline ?? []).map((phase) => (
                   <div key={phase.phase} className="flex items-center mb-2">
                     {/* Phase label */}
                     <div className="w-36 shrink-0 pr-3">
@@ -1488,7 +1488,7 @@ export function ExperimentPlan({
 
               {/* Phase details */}
               <div className="grid grid-cols-2 gap-3 mt-2">
-                {plan.timeline.map((phase) => (
+                {(plan.timeline ?? []).map((phase) => (
                   <div
                     key={phase.phase}
                     className="rounded-xl p-3"
@@ -1514,7 +1514,7 @@ export function ExperimentPlan({
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {phase.tasks.map((t) => (
+                      {(phase.tasks ?? []).map((t) => (
                         <span
                           key={t}
                           className="text-slate-500 px-1.5 py-0.5 rounded"
@@ -1544,7 +1544,7 @@ export function ExperimentPlan({
             onReviewSave={handleReviewSave}
           >
             <div className="space-y-3">
-              {plan.validation.map((metric, idx) => (
+              {(plan.validation ?? []).map((metric, idx) => (
                 <motion.div
                   key={metric.metric}
                   initial={{ opacity: 0, x: -10 }}

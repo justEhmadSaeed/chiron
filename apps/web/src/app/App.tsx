@@ -1,3 +1,4 @@
+import type { ExperimentPlanData, QCResult } from "@chiron/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -103,8 +104,9 @@ function ExperimentViewer() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  // Track whether the backend has signalled LQC completion via WebSocket
+  // Track whether the backend has signalled completion via WebSocket
   const [isLQCReady, setIsLQCReady] = useState(false);
+  const [isPlanReady, setIsPlanReady] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
 
   const {
@@ -126,11 +128,11 @@ function ExperimentViewer() {
     }
   });
 
-  // Open WebSocket while we are in the scanning stage and close it once done
+  // Open WebSocket while we are in the scanning or planning stage and close it once done
   useEffect(() => {
     if (!id) return;
-    // If the experiment is already past scanning, skip WS
-    if (experiment?.status && experiment.status !== "running") return;
+    // If the experiment is already past scanning/planning, skip WS
+    if (experiment?.status && !["running", "planning"].includes(experiment.status)) return;
 
     const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     const ws = new WebSocket(`${protocol}://${window.location.host}/ws/agent-events`);
@@ -142,12 +144,16 @@ function ExperimentViewer() {
           event_type: string;
           payload: { experiment_id?: string };
         };
-        if (
-          data.event_type === "LQC_COMPLETED" &&
-          data.payload.experiment_id === id
-        ) {
+        if (data.event_type === "LQC_COMPLETED" && data.payload.experiment_id === id) {
           setIsLQCReady(true);
           // Invalidate after the ScanningStage animation completes (~1.5 s)
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ["experiment", id] });
+          }, 2000);
+          ws.close();
+        } else if (data.event_type === "PLAN_COMPLETED" && data.payload.experiment_id === id) {
+          setIsPlanReady(true);
+          // Invalidate after the PlanningStage animation completes
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ["experiment", id] });
           }, 2000);
@@ -166,8 +172,8 @@ function ExperimentViewer() {
       ws.close();
       wsRef.current = null;
     };
-  // Re-run only when the experiment id or its status changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Re-run only when the experiment id or its status changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, experiment?.status]);
 
   const startPlanMutation = useMutation({
@@ -270,7 +276,7 @@ function ExperimentViewer() {
             >
               <QCResults
                 question={experiment.question || ""}
-                result={experiment.LQC as any}
+                result={experiment.LQC as QCResult}
                 onGenerate={handleGenerate}
                 onRedo={handleRedo}
               />
@@ -290,11 +296,12 @@ function ExperimentViewer() {
                 question={experiment?.question || ""}
                 hasPriorFeedback={hasPriorFeedback}
                 onComplete={() => {}}
+                isPlanReady={isPlanReady}
               />
             </motion.div>
           )}
 
-          {(stage === "plan" || stage === "review") && experiment?.plan && experiment?.LQC && (
+          {stage === "plan" && experiment?.plan && experiment?.LQC && (
             <motion.div
               key="plan"
               initial={{ opacity: 0 }}
@@ -304,12 +311,12 @@ function ExperimentViewer() {
               className="w-full h-full"
             >
               <ExperimentPlan
-                plan={experiment.plan as any}
-                qcResult={experiment.LQC as any}
+                plan={experiment.plan as ExperimentPlanData}
+                qcResult={experiment.LQC as QCResult}
                 question={experiment.question || ""}
                 hasPriorFeedback={hasPriorFeedback}
                 onNewPlan={handleNewPlan}
-                onFeedbackSubmit={() =>
+                onFeedbackSubmit={() => {
                   setFeedbackHistory((prev) => [
                     ...prev,
                     {
@@ -319,8 +326,8 @@ function ExperimentViewer() {
                       submittedAt: new Date().toISOString(),
                       domain: "Genomics"
                     }
-                  ])
-                }
+                  ]);
+                }}
               />
             </motion.div>
           )}

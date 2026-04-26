@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite --port 3000"
+    "dev": "vite --port 3000",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@chiron/contracts": "workspace:*",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@mui/icons-material": "7.3.5",
