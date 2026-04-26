@@ -1,105 +1,129 @@
-# Chiron
+<div align="center">
+  <img src="https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/beaker.svg" width="80" height="80" alt="Chiron Logo" />
+  <h1>CHIRON</h1>
+  <p><b>The Autonomous Scientific Research Orchestrator</b></p>
 
-Chiron is an end-to-end, multi-agent platform that accelerates scientific workflows by rigorously validating hypothesis novelty through adversarial literature review. Once verified, it dynamically generates comprehensive experimental plans, leveraging a novel continuous-learning RAG architecture to adaptively improve future protocols based on expert feedback without model retraining.
+  <p>
+    <img src="https://img.shields.io/badge/version-1.0.0-cyan.svg?style=for-the-badge" alt="Version" />
+    <img src="https://img.shields.io/badge/engine-Turborepo-ef4444.svg?style=for-the-badge&logo=turborepo" alt="Engine" />
+    <img src="https://img.shields.io/badge/backend-FastAPI-05998b.svg?style=for-the-badge&logo=fastapi" alt="Backend" />
+    <img src="https://img.shields.io/badge/frontend-React-61dafb.svg?style=for-the-badge&logo=react" alt="Frontend" />
+  </p>
 
-## Structure
+  <p align="center">
+    <i>Accelerating scientific discovery through adversarial literature review and autonomous experimental design.</i>
+  </p>
+</div>
+
+---
+
+## 🧬 Overview
+
+Chiron is an end-to-end, multi-agent platform designed to revolutionize scientific workflows. It rigorously validates hypothesis novelty through an **adversarial literature review** process. Once a hypothesis is verified, Chiron dynamically generates comprehensive experimental plans using a **continuous-learning RAG architecture** that adapts based on expert feedback.
+
+### Key Pillars
+- **Adversarial Validation**: Multi-agent review system to stress-test hypothesis novelty.
+- **Dynamic Orchestration**: Automated generation of multi-week experimental protocols.
+- **Continuous Learning**: Real-time feedback loop to refine protocol accuracy without retraining.
+- **Typed Integration**: Unified contract surface between FastAPI and React/Vite.
+
+---
+
+## 🏗️ Project Architecture
+
+Chiron is built as a high-performance monorepo using **Turborepo** and **pnpm**.
+
+<details>
+<summary><b>View Repository Map</b></summary>
 
 ```text
 .
 ├── apps/
-│   └── web/                     # React/Vite app
-├── backend/                     # FastAPI API + agent workers + shared Python code
+│   └── web/                     # Next-gen React/Vite Frontend
+├── backend/                     # FastAPI API + Distributed Agent Workers
 ├── packages/
-│   ├── contracts/               # OpenAPI artifact + generated TypeScript types
-│   └── ui/                      # Optional shared React UI package
-├── docs/                        # Architecture and operational docs
-├── ops/                         # Observability and infrastructure config
-├── .github/workflows/           # CI pipelines
-├── docker-compose.yml           # Local multi-service stack
-├── turbo.json                   # Build graph and task caching
-└── package.json                 # Root workspace scripts
+│   ├── contracts/               # OpenAPI Contract Surface (Shared Types)
+│   └── ui/                      # Shared Tailwind UI Primitives
+├── docs/                        # Architecture & Implementation Guides
+├── ops/                         # Infrastructure & Observability (OTel)
+├── turbo.json                   # Build Graph & Cache Management
+└── docker-compose.yml           # Production-ready Local Stack
 ```
+</details>
 
-## Development
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
+- **Node.js** 20+ & **pnpm** 10+
+- **Python** 3.12+
+- **Docker** Desktop or compatible engine
 
-- Node.js 20+
-- pnpm 10+
-- Python 3.12+
-- Docker Desktop or compatible engine
-
-### Install
+### Quick Installation
 
 ```bash
+# 1. Install dependencies
 pnpm install
+
+# 2. Setup Python environment
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements-dev.txt
 ```
 
-### Firebase Setup
+### Infrastructure Setup
+Chiron leverages Firebase for real-time data persistence.
 
-Chiron requires a Firebase Realtime Database for storing experiments.
+1. **Initialize Firebase**: Create a Realtime Database in the [Firebase Console](https://console.firebase.google.com/).
+2. **Credentials**: Save your service account key to `backend/firebase-credentials.json`.
+3. **Environment**: Configure your `backend/.env`:
+   ```bash
+   FIREBASE_DATABASE_URL=https://your-project-id.firebaseio.com
+   FIREBASE_CREDENTIALS_PATH=./firebase-credentials.json
+   ```
 
-1. **Create Database**: Go to the Firebase Console, create a new project, and create a Realtime Database.
-2. **Get Credentials**: In Project Settings > Service accounts, generate a new private key and save the `.json` file as `backend/firebase-credentials.json` (ensure this remains in `.gitignore`).
-3. **Set Environment Variables**: Create a `backend/.env` file with:
+---
 
-```bash
-FIREBASE_DATABASE_URL=https://your-project-id.firebaseio.com
-FIREBASE_CREDENTIALS_PATH=./firebase-credentials.json
-```
+## 🛠️ Development Workflow
 
-_(See `backend/.env.example` for alternative configuration options)._
-
-### Run locally
+Run the entire stack in parallel with a single command:
 
 ```bash
 pnpm dev
 ```
 
-This starts:
+| Service | Endpoint | Responsibility |
+| :--- | :--- | :--- |
+| **Web App** | `localhost:3000` | Research Dashboard & Visualization |
+| **API** | `localhost:8000` | Session Orchestration & Persistence |
+| **Workers** | Background | Distributed Agent Execution |
 
-- `apps/web` on `http://localhost:3000`
-- `backend` API on `http://localhost:8000`
-- `backend` worker process for agent execution
+### Quality Standards
+Maintain the integrity of the scientific engine with our unified toolchain:
 
-### Linting and formatting
+- **Linting**: `pnpm lint` (ESLint + Ruff)
+- **Formatting**: `pnpm format` (Prettier + Ruff)
+- **Type Safety**: `pnpm typecheck` (tsc + mypy)
+- **Contracts**: `pnpm contracts:generate` (OpenAPI to TS)
 
-```bash
-pnpm lint
-pnpm format
-pnpm format:check
-```
+---
 
-Repo defaults:
+## 📡 Runtime & Deployment
 
-- `ESLint` handles TypeScript and React from [eslint.config.mjs](./eslint.config.mjs)
-- `Prettier` formats frontend, shared packages, JSON, and Markdown from [.prettierrc.json](./.prettierrc.json)
-- `Ruff` formats and lints Python from [backend/pyproject.toml](./backend/pyproject.toml)
-- `VS Code` picks the right formatter automatically via [.vscode/settings.json](./.vscode/settings.json)
+### Scalable Model
+- **Real-time**: WebSocket-driven agent visibility.
+- **Decoupled**: API and Workers scale independently via Redis.
+- **Observable**: Full OpenTelemetry integration for audit trails.
 
-### Contracts generation
+### Deployment Strategy
+- **Web**: Vercel or Containerized CDN.
+- **Backend**: Scalable service mesh (API + Worker pool).
+- **Persistence**: Redis (Pub/Sub) + Postgres (Metadata) + Firebase (Real-time).
 
-```bash
-pnpm contracts:generate
-```
+---
 
-The backend exports OpenAPI, and `packages/contracts` is the single TypeScript import surface for frontend API types.
-
-## Runtime model
-
-- Frontend uses REST for request/response and WebSocket for live agent activity.
-- API handles authentication, session orchestration, persistence boundaries, and fan-out of realtime events.
-- Workers execute agent flows independently and can scale horizontally without scaling the API.
-- Redis is the default coordination layer for queueing and pub/sub in production; the scaffold uses an in-memory hub to keep local setup simple.
-
-## Deployment
-
-- Deploy `apps/web` separately on Vercel or as a container.
-- Deploy `backend` API and worker as separate services from the same codebase and image family.
-- Use Redis for queueing/pub-sub and Postgres for run metadata, audit trails, and resumability.
-- Export telemetry via OpenTelemetry to a collector, then to your logging/metrics stack.
-
-Additional detail lives in [docs/architecture.md](./docs/architecture.md).
+<div align="center">
+  <p>For deep technical dives, visit the <a href="./docs/architecture.md">Architecture Guide</a>.</p>
+  <p>Built with ❤️ by the Chiron Team</p>
+</div>
