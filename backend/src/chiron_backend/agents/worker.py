@@ -17,9 +17,8 @@ async def worker_loop() -> None:
         redis_url=settings.redis_url,
         note="Replace this loop with a queue consumer such as Redis streams, Arq, or Celery.",
     )
-    # while True:
-    #     await asyncio.sleep(60)
-    #     logger.debug("agent_worker_heartbeat")
+    # Keep process alive without spamming logs
+    await asyncio.Future()
 
 
 def main() -> None:
