@@ -304,6 +304,7 @@ export function QCResults({ result, onGenerate, onRedo }: QCResultsProps) {
   const Icon = config.icon;
   const [hoveredRef, setHoveredRef] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("split");
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const getRefId = (num: number) => result.references[num - 1]?.id ?? null;
 
@@ -312,6 +313,8 @@ export function QCResults({ result, onGenerate, onRedo }: QCResultsProps) {
     { id: "summary", label: "Summary", icon: FileText },
     { id: "references", label: "References", icon: BookOpen }
   ];
+
+  const needsSuggestions = result.signal === "similar_work" || result.signal === "exact_match";
 
   return (
     <div
@@ -358,7 +361,7 @@ export function QCResults({ result, onGenerate, onRedo }: QCResultsProps) {
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
-          className="rounded-2xl p-5"
+          className="relative z-50 rounded-2xl p-5"
           style={{
             background: config.bg,
             border: `1px solid ${config.border}`,
@@ -425,6 +428,84 @@ export function QCResults({ result, onGenerate, onRedo }: QCResultsProps) {
                 ))}
               </div>
             </div>
+
+            {/* Suggestions Button */}
+            {needsSuggestions && (
+              <div className="relative mt-2 mb-2 flex justify-end">
+                <motion.button
+                  onClick={() => setShowSuggestions(!showSuggestions)}
+                  animate={{
+                    boxShadow: [
+                      "0 0 0 0 rgba(245, 158, 11, 0.4)",
+                      "0 0 0 10px rgba(245, 158, 11, 0)"
+                    ]
+                  }}
+                  transition={{ repeat: Infinity, duration: 1.5 }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer"
+                  style={{
+                    background: "rgba(245, 158, 11, 0.15)",
+                    border: "1px solid rgba(245, 158, 11, 0.5)",
+                    color: "#f59e0b",
+                    fontFamily: "Space Grotesk, sans-serif",
+                    fontSize: "13px",
+                    fontWeight: 600
+                  }}
+                >
+                  <AlertTriangle size={14} />
+                  Suggestions
+                </motion.button>
+
+                <AnimatePresence>
+                  {showSuggestions && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 top-full mt-3 p-4 rounded-xl z-50 w-[320px]"
+                      style={{
+                        background: "rgba(13, 24, 41, 0.95)",
+                        border: "1px solid rgba(245, 158, 11, 0.4)",
+                        backdropFilter: "blur(12px)",
+                        boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+                        zIndex: 9999
+                      }}
+                    >
+                      <h4
+                        className="text-amber-400 mb-2 flex items-center gap-2"
+                        style={{
+                          fontFamily: "Space Grotesk, sans-serif",
+                          fontSize: "14px",
+                          fontWeight: 600
+                        }}
+                      >
+                        <AlertTriangle size={14} />
+                        Improvement Suggestions
+                      </h4>
+                      <p
+                        className="text-slate-300"
+                        style={{
+                          fontSize: "13px",
+                          fontFamily: "Inter, sans-serif",
+                          lineHeight: 1.5
+                        }}
+                      >
+                        To increase the novelty of your experiment:
+                        <br />
+                        <br />
+                        1. <strong>Adjust Modalities</strong>: Consider swapping or adding different
+                        measurement modalities that prior studies haven&apos;t used.
+                        <br />
+                        2. <strong>Alter Models</strong>: Use a more advanced or distinct model
+                        (e.g., 3D organoids instead of 2D cultures).
+                        <br />
+                        3. <strong>Target Novel Endpoints</strong>: Define primary endpoints not
+                        previously measured in the closest matching literature.
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
           </div>
         </motion.div>
 
