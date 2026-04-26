@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -62,7 +62,7 @@ class Reference(BaseModel):
 class QCSummaryParagraph(BaseModel):
     text: str
     citations: list[int] = Field(default_factory=list)
-    continuation: Optional[str] = None
+    continuation: str | None = None
 
 
 class QCResult(BaseModel):
@@ -71,8 +71,8 @@ class QCResult(BaseModel):
     scanDuration: float
     databases: list[str] = Field(default_factory=list)
     references: list[Reference] = Field(default_factory=list)
-    summary: Optional[list[QCSummaryParagraph]] = None
-    label_names: Optional[list[str]] = None
+    summary: list[QCSummaryParagraph] | None = None
+    label_names: list[str] | None = None
 
 
 class ProtocolStep(BaseModel):
@@ -81,7 +81,7 @@ class ProtocolStep(BaseModel):
     detail: str
     duration: str
     critical: bool
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class ProtocolPhase(BaseModel):
@@ -121,7 +121,7 @@ class TimelinePhase(BaseModel):
     duration: float
     tasks: list[str] = Field(default_factory=list)
     color: str
-    dependencies: Optional[list[str]] = None
+    dependencies: list[str] | None = None
 
 
 class ValidationMetric(BaseModel):
@@ -153,5 +153,5 @@ class ExperimentResponse(BaseModel):
     question: str
     status: ExperimentStatus
     created_at: str
-    LQC: Optional[QCResult] = Field(default=None, alias="LQC")
-    plan: Optional[ExperimentPlanData] = None
+    LQC: QCResult | None = Field(default=None, alias="LQC")
+    plan: ExperimentPlanData | None = None

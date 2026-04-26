@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useState } from "react";
-import { Route, Routes, useNavigate, useLocation, useParams, useSearchParams } from "react-router-dom";
+import { Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ExperimentPlan } from "./components/planner/ExperimentPlan";
 import { InputStage } from "./components/planner/InputStage";
 import { PlanningStage } from "./components/planner/PlanningStage";
@@ -285,7 +285,7 @@ function Home() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialQuestion = searchParams.get("q") || undefined;
-  
+
   const [isGenerating, setIsGenerating] = useState(false);
 
   const generateMutation = useMutation({

@@ -1,12 +1,6 @@
-export type AppStage =
-  | 'input'
-  | 'scanning'
-  | 'qc_results'
-  | 'planning'
-  | 'plan'
-  | 'review';
+export type AppStage = "input" | "scanning" | "qc_results" | "planning" | "plan" | "review";
 
-export type NoveltySignal = 'not_found' | 'similar_work' | 'exact_match';
+export type NoveltySignal = "not_found" | "similar_work" | "exact_match";
 
 export interface Reference {
   id: string;
@@ -16,10 +10,11 @@ export interface Reference {
   year: number;
   doi: string;
   similarity: number;
-  type: 'preprint' | 'journal' | 'review';
+  type: "preprint" | "journal" | "review";
 }
 
 export interface QCResult {
+  summary: never[];
   signal: NoveltySignal;
   noveltyScore: number;
   references: Reference[];
@@ -83,7 +78,7 @@ export interface ExperimentPlanData {
   title: string;
   question: string;
   createdAt: string;
-  complexity: 'Low' | 'Medium' | 'High' | 'Very High';
+  complexity: "Low" | "Medium" | "High" | "Very High";
   teamSize: number;
   totalWeeks: number;
   overview: string;

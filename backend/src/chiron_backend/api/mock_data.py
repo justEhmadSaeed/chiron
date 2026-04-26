@@ -1,4 +1,4 @@
-from chiron_backend.common.models import QCResult, ExperimentPlanData
+from chiron_backend.common.models import ExperimentPlanData, QCResult
 
 MOCK_QC_RESULT_DICT = {
     "signal": "similar_work",
