@@ -65,11 +65,14 @@ class QCSummaryParagraph(BaseModel):
     continuation: str | None = None
 
 
-class ExperimentFeedback(BaseModel):
+class SectionFeedback(BaseModel):
     rating: int
     issue_tags: list[str] = Field(default_factory=list)
     annotation: str
     corrections: str
+
+
+ExperimentFeedback = dict[str, SectionFeedback]
 
 
 class QCResult(BaseModel):

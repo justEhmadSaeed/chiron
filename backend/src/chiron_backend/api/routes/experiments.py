@@ -222,7 +222,7 @@ async def submit_experiment_feedback(
         if not data:
             raise HTTPException(status_code=404, detail="Experiment not found")
 
-        ref.child("feedback").set(feedback.model_dump())
+        ref.child("feedback").set({k: v.model_dump() for k, v in feedback.items()})
 
         updated_data = ref.get()
         current_status = updated_data.get("status", ExperimentStatus.RUNNING.value)

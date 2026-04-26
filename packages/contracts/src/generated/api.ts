@@ -160,17 +160,6 @@ export interface components {
             /** Question */
             question: string;
         };
-        /** ExperimentFeedback */
-        ExperimentFeedback: {
-            /** Rating */
-            rating: number;
-            /** Issue Tags */
-            issue_tags?: string[];
-            /** Annotation */
-            annotation: string;
-            /** Corrections */
-            corrections: string;
-        };
         /** ExperimentPlanData */
         ExperimentPlanData: {
             /** Title */
@@ -213,7 +202,10 @@ export interface components {
             created_at: string;
             LQC?: components["schemas"]["QCResult"] | null;
             plan?: components["schemas"]["ExperimentPlanData"] | null;
-            feedback?: components["schemas"]["ExperimentFeedback"] | null;
+            /** Feedback */
+            feedback?: {
+                [key: string]: components["schemas"]["SectionFeedback"];
+            } | null;
         };
         /**
          * ExperimentStatus
@@ -322,6 +314,17 @@ export interface components {
              * @enum {string}
              */
             type: "preprint" | "journal" | "review";
+        };
+        /** SectionFeedback */
+        SectionFeedback: {
+            /** Rating */
+            rating: number;
+            /** Issue Tags */
+            issue_tags?: string[];
+            /** Annotation */
+            annotation: string;
+            /** Corrections */
+            corrections: string;
         };
         /** TimelinePhase */
         TimelinePhase: {
@@ -550,7 +553,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ExperimentFeedback"];
+                "application/json": {
+                    [key: string]: components["schemas"]["SectionFeedback"];
+                };
             };
         };
         responses: {
