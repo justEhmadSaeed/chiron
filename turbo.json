@@ -1,5 +1,13 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": ["CI", "NODE_ENV", "VERCEL"],
+  "globalPassThroughEnv": [
+    "ENABLE_EXPERIMENTAL_COREPACK",
+    "VERCEL_URL",
+    "VERCEL_ENV",
+    "VERCEL_GIT_COMMIT_REF",
+    "VERCEL_GIT_COMMIT_SHA"
+  ],
   "tasks": {
     "generate-contracts": {
       "dependsOn": ["^generate-contracts"],
@@ -13,7 +21,8 @@
       "dependsOn": [
         "^build",
         "generate-contracts"
-      ]
+      ],
+      "env": ["VITE_BACKEND_URL", "VITE_*"]
     },
     "dev": {
       "cache": false,
