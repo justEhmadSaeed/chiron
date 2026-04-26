@@ -11,6 +11,13 @@ class Settings(BaseSettings):
     firebase_credentials_path: str | None = None
     firebase_service_account_json: str | None = None
     firebase_database_url: str | None = None
+    gemini_api_key: str = ""
+    tavily_api_key: str = ""
+    chroma_api_key: str = ""
+    chroma_tenant: str = ""
+    chroma_database: str = ""
+    embedding_model: str = "models/gemini-embedding-2"
+    llm_model: str = "gemma-4-31b-it"
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
