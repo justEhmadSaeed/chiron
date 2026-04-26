@@ -41,6 +41,10 @@ import {
 import { PLANNER_NAV_SECTIONS, REVIEW_TAGS } from "./constants";
 import { MolecularCanvas } from "./MolecularCanvas";
 import type { ExperimentPlanData, QCResult, SectionReview } from "./types";
+import {
+  downloadMarkdownFile,
+  generateMarkdownFromPlan
+} from "./utils/generateMarkdownFromPlan";
 
 interface ExperimentPlanProps {
   plan: ExperimentPlanData;
@@ -415,6 +419,20 @@ export function ExperimentPlan({
   const [isExporting, setIsExporting] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  const handleExportMarkdown = useCallback(() => {
+    setIsExporting(true);
+    try {
+      const markdown = generateMarkdownFromPlan(plan);
+      const slug = plan.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "");
+      downloadMarkdownFile(markdown, `${slug || "experiment-plan"}.md`);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [plan]);
+
   const dismissCoachMark = useCallback(() => {
     setShowCoachMark(false);
     try {
@@ -677,7 +695,7 @@ export function ExperimentPlan({
               {reviewMode ? "Exit Review" : "Review Mode"}
             </button>
             <button
-              // onClick={exportPDF}
+              onClick={handleExportMarkdown}
               disabled={isExporting}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50 cursor-pointer"
               style={{
