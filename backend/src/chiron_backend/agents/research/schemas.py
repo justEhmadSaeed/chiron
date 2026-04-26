@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class PIMOArchitectOutput(BaseModel):
@@ -10,6 +10,8 @@ class PIMOArchitectOutput(BaseModel):
 
 
 class Reference(BaseModel):
+    model_config = {"extra": "ignore"}
+
     id: str = Field(default="unknown", description="Unique reference ID, e.g. 'ref1', 'ref2'.")
     title: str = Field(default="unknown", description="Title of the paper.")
     authors: str = Field(default="unknown", description="Comma-separated author names.")
@@ -20,6 +22,20 @@ class Reference(BaseModel):
     similarity: float = Field(default=0.0, description="Similarity percentage 0-100.")
     reference_type: str = Field(default="journal", description="Must be 'journal', 'preprint', or 'review'.")
 
+    @field_validator("authors", "journal", "year", "title", "doi", mode="before")
+    @classmethod
+    def coerce_to_str(cls, v):
+        if isinstance(v, list):
+            return ", ".join(str(x) for x in v)
+        return str(v) if v is not None else "unknown"
+
+    @field_validator("similarity", mode="before")
+    @classmethod
+    def coerce_similarity(cls, v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return 0.0
 
 
 class AdversarialAgentOutput(BaseModel):

@@ -55,6 +55,11 @@ def pimo_generator_node(state: AgentState) -> Dict[str, Any]:
     ]
 
     result = structured_llm.invoke(messages)
+    if result is None:
+        logger.warning("  ✗ PIMO structured output returned None, using fallback.")
+        result = PIMOArchitectOutput(
+            population=prompt, intervention="Unknown", mechanism="Unknown", outcome="Unknown"
+        )
     logger.info(f"  ✓ PIMO done. Population='{result.population[:60]}...'")
     return {"pimo_json": result.model_dump()}
 
@@ -124,6 +129,9 @@ def adversarial_evaluator_node(state: AgentState) -> Dict[str, Any]:
     ]
 
     eval_result = structured_llm.invoke(messages)
+    if eval_result is None:
+        logger.warning("  ✗ Adversarial structured output returned None, using fallback.")
+        eval_result = AdversarialAgentOutput()
     logger.info(f"  ✓ Adversarial done. Signal: '{eval_result.signal}', "
                 f"Novelty Score: {eval_result.noveltyScore}, "
                 f"References found: {len(eval_result.references)}.")
@@ -187,7 +195,11 @@ def remediation_agent_node(state: AgentState) -> Dict[str, Any]:
     if result is None:
         logger.warning("  ↳ Structured output failed, using fallback invoke.")
         fallback = llm.invoke(messages)
-        sug_text = fallback.content if hasattr(fallback, "content") else str(fallback)
+        raw = fallback.content if hasattr(fallback, "content") else fallback
+        if isinstance(raw, list):
+            sug_text = "\n".join(str(part) for part in raw)
+        else:
+            sug_text = str(raw) if raw else "No suggestion available."
     else:
         sug_text = result.suggestion
 
@@ -223,6 +235,15 @@ def qc_router_node(state: AgentState) -> Dict[str, Any]:
     ]
 
     result = structured_llm.invoke(messages)
+    if result is None:
+        logger.warning("  ✗ QC Router structured output returned None, using fallback.")
+        result = QCRouterOutput(
+            signal=adversarial_json.get("signal", "not_found"),
+            noveltyScore=adversarial_json.get("noveltyScore", 0.0),
+            scanDuration=adversarial_json.get("scanDuration", 0.0),
+            databases=adversarial_json.get("databases", []),
+            suggestion=suggestion,
+        )
     final_dict = result.model_dump()
 
     # Post-process references for frontend compatibility
