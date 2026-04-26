@@ -13,9 +13,8 @@ class Settings(BaseSettings):
     firebase_database_url: str | None = None
     gemini_api_key: str = ""
     tavily_api_key: str = ""
-    chroma_api_key: str = ""
-    chroma_tenant: str = ""
-    chroma_database: str = ""
+    pinecone_api_key: str = ""
+    pinecone_index_name: str = "chiron-research"
     embedding_model: str = "models/gemini-embedding-2"
     llm_model: str = "gemma-4-31b-it"
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
