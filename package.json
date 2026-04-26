@@ -1,7 +1,7 @@
 {
   "name": "chiron",
   "private": true,
-  "packageManager": "pnpm@10.8.1",
+  "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
