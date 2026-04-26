@@ -242,7 +242,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ExperimentFeedback"
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/SectionFeedback"
+                },
+                "title": "Feedback"
               }
             }
           }
@@ -389,36 +393,6 @@
         ],
         "title": "ExperimentCreateRequest"
       },
-      "ExperimentFeedback": {
-        "properties": {
-          "rating": {
-            "type": "integer",
-            "title": "Rating"
-          },
-          "issue_tags": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Issue Tags"
-          },
-          "annotation": {
-            "type": "string",
-            "title": "Annotation"
-          },
-          "corrections": {
-            "type": "string",
-            "title": "Corrections"
-          }
-        },
-        "type": "object",
-        "required": [
-          "rating",
-          "annotation",
-          "corrections"
-        ],
-        "title": "ExperimentFeedback"
-      },
       "ExperimentPlanData": {
         "properties": {
           "title": {
@@ -545,12 +519,16 @@
           "feedback": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ExperimentFeedback"
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/SectionFeedback"
+                },
+                "type": "object"
               },
               {
                 "type": "null"
               }
-            ]
+            ],
+            "title": "Feedback"
           }
         },
         "type": "object",
@@ -865,6 +843,36 @@
           "type"
         ],
         "title": "Reference"
+      },
+      "SectionFeedback": {
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "title": "Rating"
+          },
+          "issue_tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Issue Tags"
+          },
+          "annotation": {
+            "type": "string",
+            "title": "Annotation"
+          },
+          "corrections": {
+            "type": "string",
+            "title": "Corrections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rating",
+          "annotation",
+          "corrections"
+        ],
+        "title": "SectionFeedback"
       },
       "TimelinePhase": {
         "properties": {

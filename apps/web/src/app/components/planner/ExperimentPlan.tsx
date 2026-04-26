@@ -1,3 +1,4 @@
+import type { ExperimentFeedback } from "@chiron/contracts";
 import {
   AlertCircle,
   ArrowLeft,
@@ -26,7 +27,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ElementType, ReactNode } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -48,8 +49,9 @@ interface ExperimentPlanProps {
   qcResult: QCResult;
   question: string;
   hasPriorFeedback?: boolean;
+  feedback?: ExperimentFeedback;
   onNewPlan: () => void;
-  onFeedbackSubmit?: () => void;
+  onFeedbackSubmit?: (feedback: ExperimentFeedback) => void;
 }
 
 function NoveltyBadge({ signal }: { signal: string }) {
@@ -396,13 +398,36 @@ export function ExperimentPlan({
   plan,
   qcResult,
   hasPriorFeedback = false,
+  feedback,
   onNewPlan,
   onFeedbackSubmit
 }: ExperimentPlanProps) {
   const [activeSection, setActiveSection] = useState("overview");
-  const [reviewMode, setReviewMode] = useState(false);
+  const [reviewMode, setReviewMode] = useState(!!feedback);
   const [expandedSteps, setExpandedSteps] = useState<number[]>([]);
-  const [reviews, setReviews] = useState<Record<string, SectionReview>>({});
+
+  // Initialize reviews from dictionary mapping
+  const initialReviews = useMemo(() => {
+    if (!feedback) return {};
+    const parsed: Record<string, SectionReview> = {};
+
+    Object.entries(feedback).forEach(([sectionId, fb]) => {
+      const sec = PLANNER_NAV_SECTIONS.find((s) => s.id === sectionId);
+      parsed[sectionId] = {
+        sectionId,
+        sectionTitle: sec ? sec.label : sectionId,
+        rating: fb.rating || 0,
+        comment: fb.annotation || "",
+        corrections: fb.corrections || "",
+        tags: fb.issue_tags || [],
+        timestamp: new Date().toISOString()
+      };
+    });
+
+    return parsed;
+  }, [feedback]);
+
+  const [reviews, setReviews] = useState<Record<string, SectionReview>>(initialReviews);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [materialSort, setMaterialSort] = useState<"category" | "cost" | "name">("category");
   const [showCoachMark, setShowCoachMark] = useState(() => {
@@ -454,7 +479,22 @@ export function ExperimentPlan({
 
   const handleFinalSubmit = () => {
     setFeedbackSubmitted(true);
-    onFeedbackSubmit?.();
+
+    const payload: ExperimentFeedback = {};
+    Object.entries(reviews).forEach(([sectionId, review]) => {
+      // Only include sections with actual feedback
+      if (review.rating > 0 || review.comment || review.corrections || review.tags.length > 0) {
+        payload[sectionId] = {
+          rating: review.rating,
+          issue_tags: review.tags,
+          annotation: review.comment,
+          corrections: review.corrections
+        };
+      }
+    });
+
+    onFeedbackSubmit?.(payload);
+
     setTimeout(() => setFeedbackSubmitted(false), 4000);
   };
 

@@ -1,4 +1,4 @@
-import type { ExperimentPlanData, QCResult } from "@chiron/contracts";
+import type { ExperimentPlanData, QCResult, ExperimentFeedback } from "@chiron/contracts";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -187,6 +187,21 @@ function ExperimentViewer() {
     }
   });
 
+  const submitFeedbackMutation = useMutation({
+    mutationFn: async (feedback: ExperimentFeedback) => {
+      const res = await fetch(`/api/experiments/${id}/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(feedback)
+      });
+      if (!res.ok) throw new Error("Failed to submit feedback");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["experiment", id] });
+    }
+  });
+
   const [feedbackHistory, setFeedbackHistory] = useState<FeedbackStore[]>([]);
   const hasPriorFeedback = feedbackHistory.length > 0;
 
@@ -215,6 +230,10 @@ function ExperimentViewer() {
     const question = experiment?.question || "";
     navigate(`/?q=${encodeURIComponent(question)}`);
   }, [navigate, experiment]);
+
+  const handleFeedbackSubmit = useCallback((feedback: ExperimentFeedback) => {
+    submitFeedbackMutation.mutate(feedback);
+  }, [submitFeedbackMutation]);
 
   if (isError) {
     return (
@@ -315,8 +334,9 @@ function ExperimentViewer() {
                 qcResult={experiment.LQC as QCResult}
                 question={experiment.question || ""}
                 hasPriorFeedback={hasPriorFeedback}
+                feedback={experiment.feedback || undefined}
                 onNewPlan={handleNewPlan}
-                onFeedbackSubmit={() => {
+                onFeedbackSubmit={(feedback: ExperimentFeedback) => {
                   setFeedbackHistory((prev) => [
                     ...prev,
                     {
@@ -327,6 +347,7 @@ function ExperimentViewer() {
                       domain: "Genomics"
                     }
                   ]);
+                  handleFeedbackSubmit(feedback);
                 }}
               />
             </motion.div>
