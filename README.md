@@ -1,6 +1,6 @@
 # Chiron
 
-This repository is structured as a production-oriented monorepo with a React/Vite frontend and a Python multi-agent backend. Turborepo orchestrates cross-package builds, contracts generation, type-checking, and parallel local development.
+Chiron is an end-to-end, multi-agent platform that accelerates scientific workflows by rigorously validating hypothesis novelty through adversarial literature review. Once verified, it dynamically generates comprehensive experimental plans, leveraging a novel continuous-learning RAG architecture to adaptively improve future protocols based on expert feedback without model retraining.
 
 ## Structure
 
@@ -50,7 +50,8 @@ Chiron requires a Firebase Realtime Database for storing experiments.
 FIREBASE_DATABASE_URL=https://your-project-id.firebaseio.com
 FIREBASE_CREDENTIALS_PATH=./firebase-credentials.json
 ```
-*(See `backend/.env.example` for alternative configuration options).*
+
+_(See `backend/.env.example` for alternative configuration options)._
 
 ### Run locally
 
