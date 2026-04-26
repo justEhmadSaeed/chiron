@@ -11,4 +11,4 @@ __pycache__
 .env
 .env.local
 .DS_Store
-
+backend/firebase-credentials.json

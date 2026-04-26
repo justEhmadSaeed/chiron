@@ -1,39 +1,45 @@
-import { useState, useCallback } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
-import { AppStage, QCResult, ExperimentPlanData, FeedbackStore } from './components/planner/types';
-import { InputStage } from './components/planner/InputStage';
-import { ScanningStage } from './components/planner/ScanningStage';
-import { QCResults } from './components/planner/QCResults';
-import { PlanningStage } from './components/planner/PlanningStage';
-import { ExperimentPlan } from './components/planner/ExperimentPlan';
-import { MOCK_QC_RESULT, MOCK_PLAN } from './components/planner/mockData';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useState } from "react";
+import { Route, Routes, useNavigate, useParams } from "react-router-dom";
+import { ExperimentPlan } from "./components/planner/ExperimentPlan";
+import { InputStage } from "./components/planner/InputStage";
+import { MOCK_PLAN, MOCK_QC_RESULT } from "./components/planner/mockData";
+import { PlanningStage } from "./components/planner/PlanningStage";
+import { QCResults } from "./components/planner/QCResults";
+import { ScanningStage } from "./components/planner/ScanningStage";
+import type { AppStage, FeedbackStore } from "./components/planner/types";
 
 // Stage progress indicator at top
 const STAGE_META = [
-  { id: 'input', label: 'Question' },
-  { id: 'scanning', label: 'Literature QC' },
-  { id: 'qc_results', label: 'QC Results' },
-  { id: 'planning', label: 'Generating' },
-  { id: 'plan', label: 'Experiment Plan' },
+  { id: "input", label: "Question" },
+  { id: "scanning", label: "Literature QC" },
+  { id: "qc_results", label: "QC Results" },
+  { id: "planning", label: "Generating" },
+  { id: "plan", label: "Experiment Plan" }
 ];
-
-const STAGE_ORDER = ['input', 'scanning', 'qc_results', 'planning', 'plan', 'review'] as AppStage[];
 
 function StageIndicator({ current }: { current: AppStage }) {
   const currentIdx = STAGE_META.findIndex((s) => s.id === current);
-  const displayStages = STAGE_META.filter((s) => s.id !== 'review');
+  const displayStages = STAGE_META.filter((s) => s.id !== "review");
 
-  if (current === 'input') return null;
+  if (current === "input") return null;
 
   return (
     <div
       className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center py-2 gap-1"
-      style={{ background: 'rgba(2, 10, 25, 0.85)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+      style={{
+        background: "rgba(2, 10, 25, 0.85)",
+        backdropFilter: "blur(20px)",
+        borderBottom: "1px solid rgba(255,255,255,0.04)"
+      }}
     >
       {displayStages.map((stage, idx) => {
         const stageIdx = STAGE_META.findIndex((s) => s.id === stage.id);
         const isCompleted = currentIdx > stageIdx;
-        const isActive = stageIdx === currentIdx || (current === 'review' && stageIdx === displayStages.length - 1);
+        const isActive =
+          stageIdx === currentIdx ||
+          (current === "review" && stageIdx === displayStages.length - 1);
 
         return (
           <div key={stage.id} className="flex items-center gap-1">
@@ -41,12 +47,16 @@ function StageIndicator({ current }: { current: AppStage }) {
               <div
                 className="w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300"
                 style={{
-                  background: isCompleted || isActive
-                    ? isActive ? 'rgba(0,212,255,0.15)' : 'rgba(0,212,255,0.08)'
-                    : 'rgba(255,255,255,0.04)',
-                  border: isCompleted || isActive
-                    ? `1px solid ${isActive ? 'rgba(0,212,255,0.5)' : 'rgba(0,212,255,0.2)'}`
-                    : '1px solid rgba(255,255,255,0.08)',
+                  background:
+                    isCompleted || isActive
+                      ? isActive
+                        ? "rgba(0,212,255,0.15)"
+                        : "rgba(0,212,255,0.08)"
+                      : "rgba(255,255,255,0.04)",
+                  border:
+                    isCompleted || isActive
+                      ? `1px solid ${isActive ? "rgba(0,212,255,0.5)" : "rgba(0,212,255,0.2)"}`
+                      : "1px solid rgba(255,255,255,0.08)"
                 }}
               >
                 {isCompleted ? (
@@ -63,19 +73,23 @@ function StageIndicator({ current }: { current: AppStage }) {
               </div>
               <span
                 style={{
-                  fontSize: '11px',
-                  fontFamily: 'JetBrains Mono, monospace',
-                  color: isActive ? '#00d4ff' : isCompleted ? '#475569' : '#2d3748',
-                  letterSpacing: '0.04em',
-                  transition: 'color 0.3s',
+                  fontSize: "11px",
+                  fontFamily: "JetBrains Mono, monospace",
+                  color: isActive ? "#00d4ff" : isCompleted ? "#475569" : "#2d3748",
+                  letterSpacing: "0.04em",
+                  transition: "color 0.3s"
                 }}
               >
                 {stage.label}
               </span>
             </div>
             {idx < displayStages.length - 1 && (
-              <div className="w-8 h-px mx-1"
-                style={{ background: isCompleted ? 'rgba(0,212,255,0.25)' : 'rgba(255,255,255,0.06)' }} />
+              <div
+                className="w-8 h-px mx-1"
+                style={{
+                  background: isCompleted ? "rgba(0,212,255,0.25)" : "rgba(255,255,255,0.06)"
+                }}
+              />
             )}
           </div>
         );
@@ -84,71 +98,105 @@ function StageIndicator({ current }: { current: AppStage }) {
   );
 }
 
-export default function App() {
-  const [stage, setStage] = useState<AppStage>('input');
-  const [question, setQuestion] = useState('');
-  const [qcResult, setQcResult] = useState<QCResult | null>(null);
-  const [plan, setPlan] = useState<ExperimentPlanData | null>(null);
-  const [feedbackHistory, setFeedbackHistory] = useState<FeedbackStore[]>([]);
+function ExperimentViewer() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
+  const {
+    data: experiment,
+    isError,
+    isLoading
+  } = useQuery({
+    queryKey: ["experiment", id],
+    queryFn: async () => {
+      const res = await fetch(`/api/experiments/${id}`);
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+    refetchInterval: (query) => {
+      // Poll every 2 seconds if not completed
+      const status = query.state.data?.status;
+      if (status === "completed") return false;
+      return 2000;
+    }
+  });
+
+  const startPlanMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/experiments/${id}/start-plan`, { method: "POST" });
+      if (!res.ok) throw new Error("Failed to start plan");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["experiment", id] });
+    }
+  });
+
+  const [feedbackHistory, setFeedbackHistory] = useState<FeedbackStore[]>([]);
   const hasPriorFeedback = feedbackHistory.length > 0;
 
-  const handleQuestionSubmit = useCallback((q: string) => {
-    setQuestion(q);
-    setStage('scanning');
-  }, []);
+  // Map backend status to AppStage
+  let stage: AppStage = "scanning";
+  if (experiment) {
+    if (experiment.status === "running") stage = "scanning";
+    else if (experiment.status === "lqc_completed") stage = "qc_results";
+    else if (experiment.status === "planning") stage = "planning";
+    else if (experiment.status === "completed") stage = "plan";
+  }
 
   const handleScanComplete = useCallback(() => {
-    setQcResult(MOCK_QC_RESULT);
-    setStage('qc_results');
+    // Progression is handled by polling the backend
   }, []);
 
   const handleGenerate = useCallback(() => {
-    setStage('planning');
-  }, []);
+    startPlanMutation.mutate();
+  }, [startPlanMutation]);
 
   const handlePlanComplete = useCallback(() => {
-    setPlan(MOCK_PLAN);
-    setStage('plan');
+    // Progression is handled by polling the backend
   }, []);
 
   const handleNewPlan = useCallback(() => {
-    setStage('input');
-    setQuestion('');
-    setQcResult(null);
-    setPlan(null);
-  }, []);
+    navigate("/");
+  }, [navigate]);
 
   const handleRedo = useCallback(() => {
-    setStage('input');
-    setQcResult(null);
-  }, []);
+    navigate("/");
+  }, [navigate]);
 
-  const showTopBar = stage !== 'input';
-  const topPadding = showTopBar ? 'pt-8' : '';
+  if (isError) {
+    return (
+      <div
+        className="flex items-center justify-center h-screen w-full text-white"
+        style={{ background: "#020c1b" }}
+      >
+        Error loading experiment
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div
+        className="flex items-center justify-center h-screen w-full text-white"
+        style={{ background: "#020c1b" }}
+      >
+        Loading...
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full h-screen overflow-hidden flex flex-col"
-      style={{ background: '#020c1b', fontFamily: 'Inter, sans-serif' }}>
-
+    <div
+      className="w-full h-screen overflow-hidden flex flex-col"
+      style={{ background: "#020c1b", fontFamily: "Inter, sans-serif" }}
+    >
       <StageIndicator current={stage} />
 
-      <div className={`flex-1 overflow-hidden ${topPadding}`}>
+      <div className="flex-1 overflow-hidden pt-8">
         <AnimatePresence mode="wait">
-          {stage === 'input' && (
-            <motion.div
-              key="input"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.35 }}
-              className="w-full h-full"
-            >
-              <InputStage onSubmit={handleQuestionSubmit} />
-            </motion.div>
-          )}
-
-          {stage === 'scanning' && (
+          {stage === "scanning" && (
             <motion.div
               key="scanning"
               initial={{ opacity: 0, y: 20 }}
@@ -157,11 +205,14 @@ export default function App() {
               transition={{ duration: 0.4 }}
               className="w-full h-full"
             >
-              <ScanningStage question={question} onComplete={handleScanComplete} />
+              <ScanningStage
+                question={experiment?.question || ""}
+                onComplete={handleScanComplete}
+              />
             </motion.div>
           )}
 
-          {stage === 'qc_results' && qcResult && (
+          {stage === "qc_results" && (
             <motion.div
               key="qc_results"
               initial={{ opacity: 0, y: 20 }}
@@ -171,15 +222,15 @@ export default function App() {
               className="w-full h-full"
             >
               <QCResults
-                question={question}
-                result={qcResult}
+                question={experiment?.question || ""}
+                result={MOCK_QC_RESULT}
                 onGenerate={handleGenerate}
                 onRedo={handleRedo}
               />
             </motion.div>
           )}
 
-          {stage === 'planning' && (
+          {stage === "planning" && (
             <motion.div
               key="planning"
               initial={{ opacity: 0, y: 20 }}
@@ -189,14 +240,14 @@ export default function App() {
               className="w-full h-full"
             >
               <PlanningStage
-                question={question}
+                question={experiment?.question || ""}
                 hasPriorFeedback={hasPriorFeedback}
                 onComplete={handlePlanComplete}
               />
             </motion.div>
           )}
 
-          {(stage === 'plan' || stage === 'review') && plan && qcResult && (
+          {(stage === "plan" || stage === "review") && (
             <motion.div
               key="plan"
               initial={{ opacity: 0 }}
@@ -206,17 +257,95 @@ export default function App() {
               className="w-full h-full"
             >
               <ExperimentPlan
-                plan={plan}
-                qcResult={qcResult}
-                question={question}
+                plan={MOCK_PLAN}
+                qcResult={MOCK_QC_RESULT}
+                question={experiment?.question || ""}
                 hasPriorFeedback={hasPriorFeedback}
                 onNewPlan={handleNewPlan}
-                onFeedbackSubmit={() => setFeedbackHistory((prev) => [...prev, { planId: Date.now().toString(), question, reviews: [], submittedAt: new Date().toISOString(), domain: 'Genomics' }])}
+                onFeedbackSubmit={() =>
+                  setFeedbackHistory((prev) => [
+                    ...prev,
+                    {
+                      planId: Date.now().toString(),
+                      question: experiment?.question || "",
+                      reviews: [],
+                      submittedAt: new Date().toISOString(),
+                      domain: "Genomics"
+                    }
+                  ])
+                }
               />
             </motion.div>
           )}
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+function Home() {
+  const navigate = useNavigate();
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const generateMutation = useMutation({
+    mutationFn: async (question: string) => {
+      const res = await fetch("/api/experiments/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question })
+      });
+      if (!res.ok) throw new Error("Failed to generate");
+      return res.json();
+    },
+    onSuccess: (data) => {
+      navigate(`/experiment/${data.experiment_id}`);
+    },
+    onSettled: () => {
+      setIsGenerating(false);
+    }
+  });
+
+  const handleQuestionSubmit = useCallback(
+    (q: string) => {
+      setIsGenerating(true);
+      generateMutation.mutate(q);
+    },
+    [generateMutation]
+  );
+
+  return (
+    <div
+      className="w-full h-screen overflow-hidden flex flex-col"
+      style={{ background: "#020c1b", fontFamily: "Inter, sans-serif" }}
+    >
+      <AnimatePresence mode="wait">
+        <motion.div
+          key="input"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0, scale: 0.98 }}
+          transition={{ duration: 0.35 }}
+          className="w-full h-full relative"
+        >
+          <InputStage onSubmit={handleQuestionSubmit} />
+          {isGenerating && (
+            <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm">
+              <div className="text-cyan-400 font-mono text-sm animate-pulse">
+                Initializing Experiment...
+              </div>
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/experiment/:id" element={<ExperimentViewer />} />
+    </Routes>
   );
 }

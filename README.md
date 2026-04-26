@@ -38,6 +38,20 @@ source .venv/bin/activate
 pip install -r backend/requirements-dev.txt
 ```
 
+### Firebase Setup
+
+Chiron requires a Firebase Realtime Database for storing experiments.
+
+1. **Create Database**: Go to the Firebase Console, create a new project, and create a Realtime Database.
+2. **Get Credentials**: In Project Settings > Service accounts, generate a new private key and save the `.json` file as `backend/firebase-credentials.json` (ensure this remains in `.gitignore`).
+3. **Set Environment Variables**: Create a `backend/.env` file with:
+
+```bash
+FIREBASE_DATABASE_URL=https://your-project-id.firebaseio.com
+FIREBASE_CREDENTIALS_PATH=./firebase-credentials.json
+```
+*(See `backend/.env.example` for alternative configuration options).*
+
 ### Run locally
 
 ```bash

@@ -39,6 +39,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/experiments/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate Experiment */
+        post: operations["generate_experiment_api_experiments_generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -69,6 +86,22 @@ export interface components {
          * @enum {string}
          */
         AgentRunStatus: "queued" | "running" | "completed" | "failed";
+        /** ExperimentCreateRequest */
+        ExperimentCreateRequest: {
+            /** Question */
+            question: string;
+        };
+        /** ExperimentResponse */
+        ExperimentResponse: {
+            /** Experiment Id */
+            experiment_id: string;
+            /** Question */
+            question: string;
+            /** Status */
+            status: string;
+            /** Created At */
+            created_at: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -154,6 +187,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AgentRun"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_experiment_api_experiments_generate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExperimentCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentResponse"];
                 };
             };
             /** @description Validation Error */

@@ -35,3 +35,21 @@ class AgentEvent(BaseModel):
     event_type: str
     created_at: datetime = Field(default_factory=utc_now)
     payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class ExperimentStatus(StrEnum):
+    RUNNING = "running"
+    LQC_COMPLETED = "lqc_completed"
+    PLANNING = "planning"
+    COMPLETED = "completed"
+
+
+class ExperimentCreateRequest(BaseModel):
+    question: str
+
+
+class ExperimentResponse(BaseModel):
+    experiment_id: str
+    question: str
+    status: ExperimentStatus
+    created_at: str

@@ -8,7 +8,9 @@ class Settings(BaseSettings):
     api_port: int = 8000
     redis_url: str = "redis://localhost:6379/0"
     otel_exporter_otlp_endpoint: str = "http://localhost:4318"
-
+    firebase_credentials_path: str | None = None
+    firebase_service_account_json: str | None = None
+    firebase_database_url: str | None = None
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
