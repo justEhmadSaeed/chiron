@@ -69,17 +69,22 @@ def _complexity(team_size: int, total_weeks: int) -> str:
 
 
 def _run_protocol_architect(hypothesis: str, global_state: dict) -> None:
-    logger.info("[Orchestrator] Step 1 — Protocol Architect")
+    logger.info("--- [1/3] Protocol Architect")
+    logger.info("  ↳ Searching Tavily for experimental protocol literature...")
 
     search_results = _tavily_search(
         f"experimental protocol methodology for: {hypothesis}"
     )
+    logger.info(f"  ↳ Tavily returned {len(search_results)} result(s).")
+
+    logger.info("  ↳ Indexing results → Pinecone RAG cache...")
     rag_chunks = store_and_retrieve(
         namespace=PROTOCOL_NAMESPACE,
         query_text=hypothesis,
         raw_search_results=search_results,
         top_k=4,
     )
+    logger.info(f"  ↳ RAG retrieved {len(rag_chunks)} relevant chunk(s).")
 
     rag_context = "\n\n---\n".join(rag_chunks) if rag_chunks else "No prior literature found."
 
@@ -89,25 +94,32 @@ def _run_protocol_architect(hypothesis: str, global_state: dict) -> None:
         f"Generate the experimental protocol JSON now."
     )
 
+    logger.info("  ↳ Calling LLM → generating protocol + validation...")
     result = call_agent(AgentName.PROTOCOL_ARCHITECT, user_message, ProtocolArchitectOutput)
     global_state.update(result)
-    logger.info("[Orchestrator] Protocol Architect complete.")
+    logger.info(f"  ✓ Protocol Architect done. "
+                f"Phases: {len(result.get('protocol', []))}, "
+                f"Validation metrics: {len(result.get('validation', []))}.")
 
 
 def _run_procurement_specialist(global_state: dict) -> None:
-    logger.info("[Orchestrator] Step 2 — Procurement Specialist")
+    logger.info("--- [2/3] Procurement Specialist")
+    title = global_state.get('title', 'experiment')
+    logger.info(f"  ↳ Experiment title: '{title}'")
 
-    search_query = (
-        f"lab reagents suppliers pricing catalog numbers for: "
-        f"{global_state.get('title', '')} experiment"
-    )
+    search_query = f"lab reagents suppliers pricing catalog numbers for: {title} experiment"
+    logger.info("  ↳ Searching Tavily for supplier & reagent data...")
     search_results = _tavily_search(search_query)
+    logger.info(f"  ↳ Tavily returned {len(search_results)} result(s).")
+
+    logger.info("  ↳ Indexing results → Pinecone RAG cache...")
     rag_chunks = store_and_retrieve(
         namespace=PROCUREMENT_NAMESPACE,
         query_text=search_query,
         raw_search_results=search_results,
         top_k=4,
     )
+    logger.info(f"  ↳ RAG retrieved {len(rag_chunks)} relevant chunk(s).")
 
     rag_context = "\n\n---\n".join(rag_chunks) if rag_chunks else "No supplier data found."
 
@@ -117,25 +129,30 @@ def _run_procurement_specialist(global_state: dict) -> None:
         f"Generate the materials Bill of Materials and append it to the JSON."
     )
 
+    logger.info("  ↳ Calling LLM → generating Bill of Materials...")
     result = call_agent(AgentName.PROCUREMENT_SPECIALIST, user_message, ProcurementSpecialistOutput)
     global_state.update(result)
-    logger.info("[Orchestrator] Procurement Specialist complete.")
+    logger.info(f"  ✓ Procurement Specialist done. "
+                f"Materials: {len(result.get('materials', []))} line items.")
 
 
 def _run_resource_manager(global_state: dict) -> None:
-    logger.info("[Orchestrator] Step 3 — Resource Manager")
+    logger.info("--- [3/3] Resource Manager")
+    title = global_state.get('title', 'experiment')
 
-    search_query = (
-        f"lab staffing timeline budget estimation for: "
-        f"{global_state.get('title', '')} experiment"
-    )
+    search_query = f"lab staffing timeline budget estimation for: {title} experiment"
+    logger.info("  ↳ Searching Tavily for staffing & budget benchmarks...")
     search_results = _tavily_search(search_query)
+    logger.info(f"  ↳ Tavily returned {len(search_results)} result(s).")
+
+    logger.info("  ↳ Indexing results → Pinecone RAG cache...")
     rag_chunks = store_and_retrieve(
         namespace=RESOURCE_NAMESPACE,
         query_text=search_query,
         raw_search_results=search_results,
         top_k=3,
     )
+    logger.info(f"  ↳ RAG retrieved {len(rag_chunks)} relevant chunk(s).")
 
     rag_context = "\n\n---\n".join(rag_chunks) if rag_chunks else "No resource data found."
 
@@ -145,9 +162,14 @@ def _run_resource_manager(global_state: dict) -> None:
         f"Calculate and append teamSize, totalWeeks, budget, and timeline."
     )
 
+    logger.info("  ↳ Calling LLM → calculating staffing, budget, timeline...")
     result = call_agent(AgentName.RESOURCE_MANAGER, user_message, ResourceManagerOutput)
     global_state.update(result)
-    logger.info("[Orchestrator] Resource Manager complete.")
+    budget_total = (result.get('budget') or {}).get('total', 0)
+    logger.info(f"  ✓ Resource Manager done. "
+                f"Team: {result.get('teamSize', '?')} people, "
+                f"Timeline: {result.get('totalWeeks', '?')} weeks, "
+                f"Budget: ${budget_total:,.0f}.")
 
 
 # ---------------------------------------------------------------------------
@@ -169,7 +191,10 @@ def run_experiment_pipeline(hypothesis: str) -> dict[str, Any]:
     dict
         Final compiled experiment JSON matching ``FinalExperimentReport``.
     """
-    logger.info("[Orchestrator] Starting experiment design pipeline.")
+    logger.info("------------------------------------------------------------")
+    logger.info("  EXPERIMENT DESIGN PIPELINE  —  Starting")
+    logger.info(f"  Hypothesis: {hypothesis[:100]}{'...' if len(hypothesis) > 100 else ''}")
+    logger.info("------------------------------------------------------------")
 
     global_state: dict[str, Any] = {}
 
@@ -178,16 +203,21 @@ def run_experiment_pipeline(hypothesis: str) -> dict[str, Any]:
         _run_procurement_specialist(global_state)
         _run_resource_manager(global_state)
 
-        # Finalize: append system metadata without calling a 4th LLM
         global_state["createdAt"] = date.today().isoformat()
-        global_state["complexity"] = _complexity(
+        complexity = _complexity(
             global_state.get("teamSize", 0),
             global_state.get("totalWeeks", 0),
         )
+        global_state["complexity"] = complexity
 
         final = FinalExperimentReport.model_validate(global_state)
-        logger.info("[Orchestrator] Pipeline complete. Cleaning up RAG namespaces...")
+        logger.info("------------------------------------------------------------")
+        logger.info(f"  ✅ PIPELINE COMPLETE  |  Complexity: {complexity}  "
+                    f"|  Team: {global_state.get('teamSize')}  "
+                    f"|  Weeks: {global_state.get('totalWeeks')}")
+        logger.info("------------------------------------------------------------")
         return final.model_dump()
 
     finally:
+        logger.info("  ↳ Cleaning up Pinecone RAG namespaces...")
         cleanup_namespaces()
