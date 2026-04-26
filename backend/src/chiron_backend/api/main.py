@@ -1,12 +1,13 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+
 from chiron_backend.api.routes.agents import router as agents_router
 from chiron_backend.api.routes.health import router as health_router
 from chiron_backend.common.logging import configure_logging
 from chiron_backend.common.realtime import RealtimeHub, ensure_realtime_hub
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager

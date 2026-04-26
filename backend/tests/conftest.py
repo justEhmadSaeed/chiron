@@ -1,9 +1,10 @@
 from collections.abc import Iterator
 
 import pytest
+from fastapi.testclient import TestClient
+
 from chiron_backend.api.main import app
 from chiron_backend.api.store import RUNS
-from fastapi.testclient import TestClient
 
 
 @pytest.fixture(autouse=True)

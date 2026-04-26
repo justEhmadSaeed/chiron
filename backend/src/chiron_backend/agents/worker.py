@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 import structlog
+
 from chiron_backend.common.config import get_settings
 from chiron_backend.common.logging import configure_logging
 

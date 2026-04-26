@@ -3,8 +3,9 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from chiron_backend.common.models import AgentEvent
 from fastapi import WebSocket
+
+from chiron_backend.common.models import AgentEvent
 
 
 class RealtimeHub:

@@ -1,13 +1,13 @@
 # Chiron
 
-This repository is structured as a production-oriented monorepo with a Next.js frontend and a Python multi-agent backend. Turborepo orchestrates cross-package builds, contracts generation, type-checking, and parallel local development.
+This repository is structured as a production-oriented monorepo with a React/Vite frontend and a Python multi-agent backend. Turborepo orchestrates cross-package builds, contracts generation, type-checking, and parallel local development.
 
 ## Structure
 
 ```text
 .
 ├── apps/
-│   └── web/                     # Next.js app
+│   └── web/                     # React/Vite app
 ├── backend/                     # FastAPI API + agent workers + shared Python code
 ├── packages/
 │   ├── contracts/               # OpenAPI artifact + generated TypeScript types
@@ -60,7 +60,7 @@ pnpm format:check
 
 Repo defaults:
 
-- `ESLint` handles TypeScript and Next.js from [eslint.config.mjs](/Users/ehmadsaeed/repos/Chiron/eslint.config.mjs)
+- `ESLint` handles TypeScript and React from [eslint.config.mjs](/Users/ehmadsaeed/repos/Chiron/eslint.config.mjs)
 - `Prettier` formats frontend, shared packages, JSON, and Markdown from [.prettierrc.json](/Users/ehmadsaeed/repos/Chiron/.prettierrc.json)
 - `Ruff` formats and lints Python from [backend/pyproject.toml](/Users/ehmadsaeed/repos/Chiron/backend/pyproject.toml)
 - `VS Code` picks the right formatter automatically via [.vscode/settings.json](/Users/ehmadsaeed/repos/Chiron/.vscode/settings.json)

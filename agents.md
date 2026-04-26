@@ -6,7 +6,7 @@ This file is for coding agents and automated collaborators working inside the Ch
 
 Chiron is a Turborepo-based monorepo with:
 
-- `apps/web`: Next.js 15 + TypeScript frontend
+- `apps/web`: React + Vite + TypeScript frontend
 - `backend`: FastAPI API + Python agent worker runtime
 - `packages/contracts`: generated TypeScript API contract surface derived from backend OpenAPI
 - `packages/ui`: shared React UI primitives
@@ -23,7 +23,7 @@ The repo is designed for:
 ```text
 .
 ├── apps/web/
-│   ├── src/app/                 # Next.js App Router pages/layout
+│   ├── src/app/                 # React components and routing
 │   ├── src/components/          # UI components
 │   ├── src/lib/api/             # REST client to backend
 ├── backend/
@@ -113,12 +113,12 @@ pnpm format
 
 ## Language and Tooling Conventions
 
-### TypeScript / Next.js
+### TypeScript / React
 
 - Shared TS lint config lives in `eslint.config.mjs`.
 - Formatting uses Prettier with the root `.prettierignore`.
-- `apps/web/next.config.mjs` uses `typedRoutes` and standalone output.
-- `next build` skips linting because lint is already enforced separately at repo level.
+- `apps/web/vite.config.ts` handles the frontend build.
+- `vite build` replaces standard linting to prioritize the main repo tooling check.
 - Keep imports against workspace packages stable:
   - `@chiron/contracts`
   - `@chiron/ui`
@@ -217,6 +217,6 @@ Stop and ask for clarification if:
 - [README.md](/Users/ehmadsaeed/repos/Chiron/README.md)
 - [docs/architecture.md](/Users/ehmadsaeed/repos/Chiron/docs/architecture.md)
 - [turbo.json](/Users/ehmadsaeed/repos/Chiron/turbo.json)
-- [apps/web/next.config.mjs](/Users/ehmadsaeed/repos/Chiron/apps/web/next.config.mjs)
+- [apps/web/vite.config.ts](/Users/ehmadsaeed/repos/Chiron/apps/web/vite.config.ts)
 - [backend/package.json](/Users/ehmadsaeed/repos/Chiron/backend/package.json)
 - [packages/contracts/src/index.ts](/Users/ehmadsaeed/repos/Chiron/packages/contracts/src/index.ts)

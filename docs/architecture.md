@@ -12,7 +12,7 @@
 ```text
 apps/
   web/
-    src/app/                     # Next.js App Router
+    src/app/                     # React components and routing
     src/components/              # Web app components
     src/lib/api/                 # Backend REST client
     src/lib/realtime/            # WebSocket/SSE client logic
