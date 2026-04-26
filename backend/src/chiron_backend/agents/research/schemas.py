@@ -1,4 +1,4 @@
-from typing import List, Optional, Any
+from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -10,15 +10,16 @@ class PIMOArchitectOutput(BaseModel):
 
 
 class Reference(BaseModel):
-    id: str = "unknown"
-    title: str = "unknown"
-    authors: Any = "unknown"
-    journal: Any = "unknown"
-    year: Any = "unknown"
-    doi: str = "unknown"
-    url: str = "unknown"
-    similarity: float = 0.0
-    reference_type: str = Field(default="journal", description="Must be 'journal', 'preprint', or 'review'")
+    id: str = Field(default="unknown", description="Unique reference ID, e.g. 'ref1', 'ref2'.")
+    title: str = Field(default="unknown", description="Title of the paper.")
+    authors: str = Field(default="unknown", description="Comma-separated author names.")
+    journal: str = Field(default="unknown", description="Journal or conference name.")
+    year: str = Field(default="unknown", description="Publication year as a string, e.g. '2023'.")
+    doi: str = Field(default="unknown", description="DOI identifier.")
+    url: str = Field(default="", description="URL to the paper.")
+    similarity: float = Field(default=0.0, description="Similarity percentage 0-100.")
+    reference_type: str = Field(default="journal", description="Must be 'journal', 'preprint', or 'review'.")
+
 
 
 class AdversarialAgentOutput(BaseModel):

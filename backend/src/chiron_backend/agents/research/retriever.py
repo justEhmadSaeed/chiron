@@ -130,10 +130,33 @@ def store_and_retrieve_rag_chunks(
         logger.warning(f"[RAG:{namespace}] No content to index.")
         return []
 
+    MAX_CHUNKS = 200
+    if len(docs) > MAX_CHUNKS:
+        logger.info(f"[RAG:{namespace}] Capping {len(docs)} chunks → {MAX_CHUNKS}")
+        docs = docs[:MAX_CHUNKS]
+        metadata = metadata[:MAX_CHUNKS]
+        ids = ids[:MAX_CHUNKS]
+
     logger.info(f"[RAG:{namespace}] Upserting {len(docs)} chunks...")
+
+    BATCH_SIZE = 25
+    BATCH_DELAY = 1.5
     embeddings: list = []
-    for i in range(0, len(docs), 50):
-        embeddings.extend(embedder.embed_documents(docs[i : i + 50]))
+    for i in range(0, len(docs), BATCH_SIZE):
+        if i > 0:
+            time.sleep(BATCH_DELAY)
+        batch = docs[i : i + BATCH_SIZE]
+        for attempt in range(3):
+            try:
+                embeddings.extend(embedder.embed_documents(batch))
+                break
+            except Exception as e:
+                if "429" in str(e) and attempt < 2:
+                    wait = (attempt + 1) * 5
+                    logger.warning(f"[RAG:{namespace}] Embedding 429, retrying in {wait}s...")
+                    time.sleep(wait)
+                else:
+                    raise
 
     vectors = [
         {"id": ids[i], "values": embeddings[i], "metadata": metadata[i]}
@@ -159,6 +182,7 @@ def store_and_retrieve_rag_chunks(
         )
 
     logger.info(f"[RAG:{namespace}] Retrieved {len(retrieved)} chunks.")
+
     return retrieved
 
 
