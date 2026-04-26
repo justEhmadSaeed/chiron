@@ -1,0 +1,251 @@
+from chiron_backend.common.models import QCResult, ExperimentPlanData
+
+MOCK_QC_RESULT_DICT = {
+    "signal": "similar_work",
+    "noveltyScore": 71,
+    "scanDuration": 4.2,
+    "databases": ["PubMed", "bioRxiv", "Scopus", "ClinicalTrials.gov", "Europe PMC"],
+    "references": [
+        {
+            "id": "ref1",
+            "title": "APOE4-specific correction by CRISPR-Cas9 enhances amyloid clearance in iPSC-derived neurons",
+            "authors": "Lin, Y.T., Seo, J., Gao, F., et al.",
+            "journal": "Nature Medicine",
+            "year": 2022,
+            "doi": "10.1038/s41591-022-01890-4",
+            "similarity": 68,
+            "type": "journal",
+        },
+        {
+            "id": "ref2",
+            "title": "Isogenic human iPSC-derived neuron pairs reveal transcriptional and functional differences in APOE4",
+            "authors": "Huang, Y., Mahley, R.W., Bhatt, D.L.",
+            "journal": "Cell Stem Cell",
+            "year": 2021,
+            "doi": "10.1016/j.stem.2021.09.011",
+            "similarity": 54,
+            "type": "journal",
+        },
+        {
+            "id": "ref3",
+            "title": "Differential effects of APOE3 vs APOE4 alleles on Aβ42 secretion in iPSC neurons",
+            "authors": "Wadhwani, A.R., Affaneh, A., Van Drunen, R.",
+            "journal": "bioRxiv preprint",
+            "year": 2023,
+            "doi": "10.1101/2023.04.017.2451",
+            "similarity": 41,
+            "type": "preprint",
+        },
+    ],
+    "summary": [
+        {
+            "text": "Analysis of 125M+ records across 5 databases reveals this experiment is methodologically grounded and timely, targeting APOE4→APOE3 allele correction via HDR-based CRISPR in patient-derived iPSC cortical neurons. The scan returned a novelty score of 71/100, signalling meaningful prior art with clearly distinguishable experimental components.",
+            "citations": []
+        },
+        {
+            "text": "The closest match at 68% protocol similarity — Lin et al.",
+            "citations": [1],
+            "continuation": " — demonstrated APOE4-specific CRISPR correction enhancing amyloid clearance in comparable iPSC systems (Nature Medicine, 2022). Critically, their primary endpoint was transcriptomic; the multi-modal Aβ ELISA + TMT-proteomics + live-imaging stack proposed here was not employed, leaving a distinct functional gap."
+        },
+        {
+            "text": "Huang & Mahley",
+            "citations": [2],
+            "continuation": " compared isogenic APOE3/4 iPSC neuron pairs at the transcriptional level without performing CRISPR editing (Cell Stem Cell, 2021). This confirms the direct functional consequence of bi-allelic correction in differentiated neurons remains underexplored territory."
+        },
+        {
+            "text": "Wadhwani et al.",
+            "citations": [3],
+            "continuation": " reported differential Aβ42 secretion in 2D monolayer systems (bioRxiv, 2023) — a substantially less mature model than the BrainPhys-differentiated cortical neurons proposed here, which more closely approximate in vivo physiology."
+        },
+        {
+            "text": "Your key differentiators are: (1) bi-allelic HDR-based correction verified by Sanger + GUIDE-seq off-target profiling, (2) BrainPhys neuronal maturation over 6 weeks, and (3) a combined ELISA + proteomics + live imaging endpoint stack. These collectively distinguish this experiment from existing literature. Recommendation: proceed to plan generation.",
+            "citations": []
+        }
+    ],
+    "label_names": []
+}
+
+MOCK_PLAN_DICT = {
+    "title": "CRISPR-Cas9 APOE4 Correction in iPSC-Derived Alzheimer's Neurons",
+    "question": "What is the effect of CRISPR-Cas9 targeting of the APOE4 gene variant on amyloid-beta accumulation in iPSC-derived neurons from Alzheimer's disease patients?",
+    "createdAt": "2026-04-25",
+    "complexity": "Very High",
+    "teamSize": 4,
+    "totalWeeks": 15,
+    "hypothesis": "Correcting the APOE4 allele to APOE3 via HDR-based CRISPR editing will significantly reduce Aβ42 secretion (≥30%) and Aβ42/Aβ40 ratio in differentiated cortical neurons, restoring lipid homeostasis pathways associated with reduced AD pathology.",
+    "overview": "This experiment employs CRISPR-Cas9 with HDR to convert the rs429358 SNP (APOE4→APOE3) in patient-derived iPSCs, followed by directed cortical neuron differentiation and multi-modal functional analysis. Primary endpoints are Aβ42 secretion and Aβ42/Aβ40 ratio. Secondary endpoints include tau phosphorylation, lipid metabolism markers, and synaptic density. Isogenic control lines will be used throughout to isolate APOE genotype-specific effects.",
+    "protocol": [
+        {
+            "phase": "Phase 1 — iPSC Setup & CRISPR Design",
+            "weekRange": "Weeks 1–2",
+            "steps": [
+                {
+                    "id": 1,
+                    "title": "iPSC Thawing & Recovery",
+                    "detail": "Thaw APOE4/4 patient iPSC line (Coriell AG09908) in pre-warmed mTeSR1 media supplemented with 10 μM ROCK inhibitor Y-27632. Plate on Matrigel-coated 6-well plates at 2.5×10⁵ cells/cm². Change media daily; remove ROCK inhibitor after 24h.",
+                    "duration": "7 days",
+                    "critical": True,
+                    "notes": "Cell viability post-thaw must exceed 85%. Discard batch if below threshold.",
+                },
+                {
+                    "id": 2,
+                    "title": "iPSC Quality Control",
+                    "detail": "Confirm pluripotency via immunofluorescence (OCT4, SOX2, NANOG, TRA-1-60). Karyotype analysis (G-banding, 20 metaphases). STR profiling to verify identity. Mycoplasma test.",
+                    "duration": "3 days",
+                    "critical": False,
+                    "notes": "Proceed only with confirmed normal karyotype and >95% pluripotency markers.",
+                },
+                {
+                    "id": 3,
+                    "title": "sgRNA Design & In Vitro Validation",
+                    "detail": "Design 3 sgRNAs targeting the APOE4-specific SNP (chr19:44908684, rs429358) using Benchling with Doench 2016 scoring. Rank by on-target efficiency and off-target prediction. Synthesize via Synthego CRISPRevolution. Validate by T7E1 mismatch cleavage assay in HEK293T cells transfected with Cas9 plasmid.",
+                    "duration": "5 days",
+                    "critical": True,
+                    "notes": "Select sgRNA with >40% T7E1 cleavage efficiency for nucleofection.",
+                },
+            ],
+        },
+        {
+            "phase": "Phase 2 — Gene Editing & Clone Selection",
+            "weekRange": "Weeks 3–5",
+            "steps": [
+                {
+                    "id": 4,
+                    "title": "RNP Complex Assembly",
+                    "detail": "Assemble Cas9 RNP at 1:2 molar ratio (Cas9:sgRNA). Incubate at RT for 10 min. Prepare ssODN HDR template (200 nt symmetric arms, phosphorothioate-protected termini) at 4 μM. Add Alt-R HDR Enhancer (IDT) to boost HDR efficiency.",
+                    "duration": "1 day",
+                    "critical": True,
+                },
+                {
+                    "id": 5,
+                    "title": "Nucleofection",
+                    "detail": "Lift iPSCs at 70–80% confluency (Accutase, 5 min). Count and resuspend 2×10⁶ cells in 100 μL P3 solution (Lonza 4D-Nucleofector). Nucleofect using program CB-150. Immediately transfer to pre-warmed mTeSR1 + ROCK inhibitor. Assess viability at 24h.",
+                    "duration": "1 day",
+                    "critical": True,
+                    "notes": "Include GFP nucleofection control to assess transfection efficiency (target >60%).",
+                },
+                {
+                    "id": 6,
+                    "title": "Single-Cell FACS Sorting & Expansion",
+                    "detail": "At 48h post-nucleofection, dissociate cells (Accutase). Sort single cells by FACS (BD FACSAria III) into 96-well plates containing conditioned media + 10 μM Y-27632 + 10% CloneR supplement. Expand clones 10–14 days.",
+                    "duration": "14 days",
+                    "critical": False,
+                },
+                {
+                    "id": 7,
+                    "title": "Clone Screening & Off-Target Analysis",
+                    "detail": "Extract gDNA from 96 clones. PCR-amplify 350 bp around edit site. Sanger sequencing. Select 10 correctly edited clones. Perform GUIDE-seq off-target analysis on top 5 candidates. Whole-genome SNP array to confirm genome stability.",
+                    "duration": "7 days",
+                    "critical": True,
+                    "notes": "Require bi-allelic correction confirmed by allele-specific PCR before proceeding.",
+                },
+            ],
+        },
+        {
+            "phase": "Phase 3 — Neuronal Differentiation",
+            "weekRange": "Weeks 6–12",
+            "steps": [
+                {
+                    "id": 8,
+                    "title": "Neural Induction (Dual SMAD Inhibition)",
+                    "detail": "Day 0: Switch confirmed edited clones + isogenic controls to neural induction media (DMEM/F12 + Neurobasal 1:1, N2, B27 without Vit A, 10 μM SB431542, 100 nM LDN193189). Change media daily. Neuroepithelial rosettes should appear by day 7.",
+                    "duration": "10 days",
+                    "critical": False,
+                },
+                {
+                    "id": 9,
+                    "title": "Neuronal Patterning & Terminal Differentiation",
+                    "detail": "Day 10–17: Add BDNF (20 ng/mL), NT-3 (10 ng/mL), DAPT (10 μM). Day 17+: Transfer to BrainPhys media (STEMCELL Tech). Add laminin (1 μg/mL), ascorbic acid (200 μM), cAMP (0.5 mM). Maintain for 6 additional weeks with 50% media change every 3 days.",
+                    "duration": "42 days",
+                    "critical": False,
+                    "notes": "Confirm >70% MAP2+ and >50% TUJ1+ neurons by week 8 immunofluorescence before proceeding to assays.",
+                },
+            ],
+        },
+        {
+            "phase": "Phase 4 — Functional Assays & Analysis",
+            "weekRange": "Weeks 13–15",
+            "steps": [
+                {
+                    "id": 10,
+                    "title": "Amyloid-Beta ELISA",
+                    "detail": "Collect 200 μL conditioned media every 24h from day 56–70 post-differentiation. Centrifuge 1000×g to remove debris. Measure Aβ40 and Aβ42 using Invitrogen ELISA kits (KHB3481, KHB3441) following manufacturer protocol. Run n=6 technical replicates per condition × 3 biological replicates.",
+                    "duration": "14 days",
+                    "critical": True,
+                    "notes": "Primary endpoint. All samples run in the same assay batch to minimize inter-assay CV.",
+                },
+                {
+                    "id": 11,
+                    "title": "Phospho-Tau Immunofluorescence",
+                    "detail": "Fix cells with 4% PFA (15 min, RT). Permeabilize with 0.1% Triton X-100. Block with 5% normal goat serum. Primary antibodies: pTau Ser396 (1:500), MAP2 (1:1000), DAPI. Secondary: Alexa Fluor 488/568. Image on confocal (Zeiss LSM 980, 40× oil objective). Quantify with CellProfiler pipeline.",
+                    "duration": "5 days",
+                    "critical": False,
+                },
+                {
+                    "id": 12,
+                    "title": "Quantitative Mass Spectrometry (TMT-MS)",
+                    "detail": "Lyse cells in RIPA (protease + phosphatase inhibitors). Protein quantification by BCA assay. Digest with LysC + Trypsin (1:50). Label with TMT 10-plex. Mix equally, fractionate by HPLC. LC-MS/MS on Q Exactive HF platform. Search against UniProt human proteome. Analyze in Perseus.",
+                    "duration": "7 days",
+                    "critical": False,
+                    "notes": "Target >5000 quantified proteins. Focus analysis on lipid metabolism, endosomal trafficking, and synaptic pathways.",
+                },
+                {
+                    "id": 13,
+                    "title": "Data Integration & Statistical Analysis",
+                    "detail": "Primary endpoint: Student's t-test (APOE3-edited vs APOE4 control) with Bonferroni correction. ELISA data normalized to total protein concentration. Proteomics: FDR <0.05 (Perseus permutation-based). GSEA pathway analysis (MSigDB v2024). Visualization in R (ggplot2, ComplexHeatmap).",
+                    "duration": "5 days",
+                    "critical": False,
+                },
+            ],
+        },
+    ],
+    "materials": [
+        {"id": 1, "name": "iPSC Line — APOE4/4 (Coriell AG09908)", "catalog": "AG09908", "supplier": "Coriell Institute", "unitCost": 795, "qty": 1, "unit": "vial", "total": 795, "category": "Biologics", "leadTime": "2–3 weeks"},
+        {"id": 2, "name": "SpCas9-NLS Protein (HiFi, Alt-R)", "catalog": "1081058", "supplier": "IDT", "unitCost": 420, "qty": 5, "unit": "nmol", "total": 2100, "category": "CRISPR", "leadTime": "1 week"},
+        {"id": 3, "name": "sgRNA Synthesis (CRISPRevolution)", "catalog": "Custom", "supplier": "Synthego", "unitCost": 299, "qty": 3, "unit": "nmol", "total": 897, "category": "CRISPR", "leadTime": "2 weeks"},
+        {"id": 4, "name": "ssODN HDR Template (Ultramer)", "catalog": "Custom-HDR", "supplier": "IDT", "unitCost": 195, "qty": 1, "unit": "nmol", "total": 195, "category": "CRISPR", "leadTime": "5 days"},
+        {"id": 5, "name": "Alt-R HDR Enhancer V2", "catalog": "1081072", "supplier": "IDT", "unitCost": 110, "qty": 2, "unit": "500 μL", "total": 220, "category": "CRISPR", "leadTime": "1 week"},
+        {"id": 6, "name": "mTeSR1 Complete Kit", "catalog": "85850", "supplier": "STEMCELL Tech", "unitCost": 398, "qty": 4, "unit": "500 mL", "total": 1592, "category": "Cell Culture", "leadTime": "3 days"},
+        {"id": 7, "name": "Matrigel hESC-Qualified Matrix", "catalog": "354277", "supplier": "Corning", "unitCost": 412, "qty": 2, "unit": "5 mL", "total": 824, "category": "Cell Culture", "leadTime": "5 days"},
+        {"id": 8, "name": "BrainPhys Neuronal Medium", "catalog": "05790", "supplier": "STEMCELL Tech", "unitCost": 268, "qty": 6, "unit": "500 mL", "total": 1608, "category": "Cell Culture", "leadTime": "3 days"},
+        {"id": 9, "name": "P3 Primary Cell Nucleofector Kit (4D)", "catalog": "V4XP-3024", "supplier": "Lonza", "unitCost": 897, "qty": 2, "unit": "24 rxn", "total": 1794, "category": "Transfection", "leadTime": "1 week"},
+        {"id": 10, "name": "ROCK Inhibitor Y-27632", "catalog": "1254", "supplier": "Tocris", "unitCost": 124, "qty": 3, "unit": "10 mg", "total": 372, "category": "Small Molecules", "leadTime": "1 week"},
+        {"id": 11, "name": "SB431542 (ALK4/5/7 inhibitor)", "catalog": "1614", "supplier": "Tocris", "unitCost": 89, "qty": 2, "unit": "10 mg", "total": 178, "category": "Small Molecules", "leadTime": "1 week"},
+        {"id": 12, "name": "LDN193189 (BMP inhibitor)", "catalog": "6053", "supplier": "Tocris", "unitCost": 142, "qty": 2, "unit": "10 mg", "total": 284, "category": "Small Molecules", "leadTime": "1 week"},
+        {"id": 13, "name": "Recombinant Human BDNF", "catalog": "248-BDB", "supplier": "R&D Systems", "unitCost": 298, "qty": 3, "unit": "50 μg", "total": 894, "category": "Growth Factors", "leadTime": "3 days"},
+        {"id": 14, "name": "Amyloid Beta 40 ELISA Kit", "catalog": "KHB3481", "supplier": "Thermo Fisher", "unitCost": 524, "qty": 4, "unit": "96-well kit", "total": 2096, "category": "Assay Kits", "leadTime": "3 days"},
+        {"id": 15, "name": "Amyloid Beta 42 ELISA Kit", "catalog": "KHB3441", "supplier": "Thermo Fisher", "unitCost": 524, "qty": 4, "unit": "96-well kit", "total": 2096, "category": "Assay Kits", "leadTime": "3 days"},
+        {"id": 16, "name": "TMT 10-plex Label Reagent Set", "catalog": "90110", "supplier": "Thermo Fisher", "unitCost": 986, "qty": 1, "unit": "kit", "total": 986, "category": "Proteomics", "leadTime": "1 week"},
+        {"id": 17, "name": "Anti-MAP2 Antibody (ab32454)", "catalog": "ab32454", "supplier": "Abcam", "unitCost": 399, "qty": 1, "unit": "100 μL", "total": 399, "category": "Antibodies", "leadTime": "3 days"},
+        {"id": 18, "name": "Anti-pTau Ser396 (ab109390)", "catalog": "ab109390", "supplier": "Abcam", "unitCost": 449, "qty": 1, "unit": "100 μL", "total": 449, "category": "Antibodies", "leadTime": "3 days"},
+    ],
+    "budget": {
+        "total": 52840,
+        "categories": [
+            {"name": "Reagents & Consumables", "amount": 15779, "color": "#00d4ff", "percentage": 30},
+            {"name": "Sequencing Services", "amount": 9800, "color": "#7c3aed", "percentage": 19},
+            {"name": "Core Facility (Imaging/FACS)", "amount": 12000, "color": "#10b981", "percentage": 23},
+            {"name": "Personnel (4 FTE × 3.5 mo.)", "amount": 11200, "color": "#f59e0b", "percentage": 21},
+            {"name": "Equipment Amortization", "amount": 2261, "color": "#ec4899", "percentage": 4},
+            {"name": "Contingency (15%)", "amount": 1800, "color": "#64748b", "percentage": 3},
+        ],
+    },
+    "timeline": [
+        {"phase": "iPSC Setup & QC", "start": 0, "duration": 2, "tasks": ["Cell recovery", "Pluripotency QC", "sgRNA design", "T7E1 validation"], "color": "#00d4ff"},
+        {"phase": "Gene Editing", "start": 2, "duration": 3, "tasks": ["RNP assembly", "Nucleofection", "Clone expansion (96)", "Sanger + GUIDE-seq"], "color": "#7c3aed", "dependencies": ["iPSC Setup & QC"]},
+        {"phase": "Neuronal Differentiation", "start": 5, "duration": 7, "tasks": ["Dual SMAD induction", "Neuronal patterning", "BrainPhys maturation", "IF quality checks"], "color": "#10b981", "dependencies": ["Gene Editing"]},
+        {"phase": "Functional Assays", "start": 12, "duration": 3, "tasks": ["Aβ40/42 ELISA", "pTau IF", "TMT-MS proteomics", "Statistical analysis"], "color": "#f59e0b", "dependencies": ["Neuronal Differentiation"]},
+    ],
+    "validation": [
+        {"metric": "Editing Efficiency", "target": ">85% bi-allelic correct clones confirmed", "method": "Sanger sequencing + allele-specific PCR", "critical": True, "timepoint": "Week 5"},
+        {"metric": "Off-Target Activity", "target": "<0.1% indels at top 10 predicted off-target sites", "method": "GUIDE-seq, targeted amplicon NGS", "critical": True, "timepoint": "Week 5"},
+        {"metric": "Neuronal Identity", "target": ">70% MAP2+ cells, >50% TUJ1+ cells", "method": "IF + flow cytometry (BD LSRFortessa)", "critical": False, "timepoint": "Week 12"},
+        {"metric": "Aβ42 Secretion", "target": "≥30% reduction vs. APOE4 isogenic control", "method": "ELISA (KHB3441), normalized to total protein", "critical": True, "timepoint": "Week 14"},
+        {"metric": "Aβ42/Aβ40 Ratio", "target": "Ratio normalized toward age-matched healthy control range", "method": "Ratio from simultaneous ELISA", "critical": True, "timepoint": "Week 14"},
+        {"metric": "Cell Viability", "target": ">90% viable at all timepoints", "method": "Live/Dead Aqua, Trypan blue exclusion", "critical": False, "timepoint": "Ongoing"},
+        {"metric": "Proteome Coverage", "target": ">5000 quantified proteins, FDR <0.05", "method": "TMT-MS, Q Exactive HF, Perseus analysis", "critical": False, "timepoint": "Week 15"},
+    ],
+}
+
+MOCK_QC_RESULT = QCResult.model_validate(MOCK_QC_RESULT_DICT)
+MOCK_PLAN = ExperimentPlanData.model_validate(MOCK_PLAN_DICT)

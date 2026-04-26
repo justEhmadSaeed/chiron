@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal, Optional
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -48,8 +48,110 @@ class ExperimentCreateRequest(BaseModel):
     question: str
 
 
+class Reference(BaseModel):
+    id: str
+    title: str
+    authors: str
+    journal: str
+    year: int
+    doi: str
+    similarity: float
+    type: Literal['preprint', 'journal', 'review']
+
+
+class QCSummaryParagraph(BaseModel):
+    text: str
+    citations: list[int] = Field(default_factory=list)
+    continuation: Optional[str] = None
+
+
+class QCResult(BaseModel):
+    signal: Literal['not_found', 'similar_work', 'exact_match']
+    noveltyScore: float
+    scanDuration: float
+    databases: list[str] = Field(default_factory=list)
+    references: list[Reference] = Field(default_factory=list)
+    summary: Optional[list[QCSummaryParagraph]] = None
+    label_names: Optional[list[str]] = None
+
+
+class ProtocolStep(BaseModel):
+    id: int
+    title: str
+    detail: str
+    duration: str
+    critical: bool
+    notes: Optional[str] = None
+
+
+class ProtocolPhase(BaseModel):
+    phase: str
+    weekRange: str
+    steps: list[ProtocolStep] = Field(default_factory=list)
+
+
+class Material(BaseModel):
+    id: int
+    name: str
+    catalog: str
+    supplier: str
+    unitCost: float
+    qty: int
+    unit: str
+    total: float
+    category: str
+    leadTime: str
+
+
+class BudgetCategory(BaseModel):
+    name: str
+    amount: float
+    color: str
+    percentage: float
+
+
+class Budget(BaseModel):
+    total: float
+    categories: list[BudgetCategory] = Field(default_factory=list)
+
+
+class TimelinePhase(BaseModel):
+    phase: str
+    start: float
+    duration: float
+    tasks: list[str] = Field(default_factory=list)
+    color: str
+    dependencies: Optional[list[str]] = None
+
+
+class ValidationMetric(BaseModel):
+    metric: str
+    target: str
+    method: str
+    critical: bool
+    timepoint: str
+
+
+class ExperimentPlanData(BaseModel):
+    title: str
+    question: str
+    createdAt: str
+    complexity: Literal['Low', 'Medium', 'High', 'Very High']
+    teamSize: int
+    totalWeeks: int
+    overview: str
+    hypothesis: str
+    protocol: list[ProtocolPhase] = Field(default_factory=list)
+    materials: list[Material] = Field(default_factory=list)
+    budget: Budget
+    timeline: list[TimelinePhase] = Field(default_factory=list)
+    validation: list[ValidationMetric] = Field(default_factory=list)
+
+
 class ExperimentResponse(BaseModel):
     experiment_id: str
     question: str
     status: ExperimentStatus
     created_at: str
+    LQC: Optional[QCResult] = Field(default=None, alias="LQC")
+    plan: Optional[ExperimentPlanData] = None

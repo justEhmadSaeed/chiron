@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useState } from "react";
-import { Route, Routes, useNavigate, useParams } from "react-router-dom";
+import { Route, Routes, useNavigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { ExperimentPlan } from "./components/planner/ExperimentPlan";
 import { InputStage } from "./components/planner/InputStage";
-import { MOCK_PLAN, MOCK_QC_RESULT } from "./components/planner/mockData";
 import { PlanningStage } from "./components/planner/PlanningStage";
 import { QCResults } from "./components/planner/QCResults";
 import { ScanningStage } from "./components/planner/ScanningStage";
@@ -153,17 +153,14 @@ function ExperimentViewer() {
     startPlanMutation.mutate();
   }, [startPlanMutation]);
 
-  const handlePlanComplete = useCallback(() => {
-    // Progression is handled by polling the backend
-  }, []);
-
   const handleNewPlan = useCallback(() => {
     navigate("/");
   }, [navigate]);
 
   const handleRedo = useCallback(() => {
-    navigate("/");
-  }, [navigate]);
+    const question = experiment?.question || "";
+    navigate(`/?q=${encodeURIComponent(question)}`);
+  }, [navigate, experiment]);
 
   if (isError) {
     return (
@@ -179,10 +176,11 @@ function ExperimentViewer() {
   if (isLoading) {
     return (
       <div
-        className="flex items-center justify-center h-screen w-full text-white"
+        className="flex flex-col items-center justify-center h-screen w-full text-white space-y-4"
         style={{ background: "#020c1b" }}
       >
-        Loading...
+        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+        <span className="font-mono text-sm text-cyan-400/80">Loading Experiment...</span>
       </div>
     );
   }
@@ -212,7 +210,7 @@ function ExperimentViewer() {
             </motion.div>
           )}
 
-          {stage === "qc_results" && (
+          {stage === "qc_results" && experiment?.LQC && (
             <motion.div
               key="qc_results"
               initial={{ opacity: 0, y: 20 }}
@@ -222,8 +220,8 @@ function ExperimentViewer() {
               className="w-full h-full"
             >
               <QCResults
-                question={experiment?.question || ""}
-                result={MOCK_QC_RESULT}
+                question={experiment.question || ""}
+                result={experiment.LQC as any}
                 onGenerate={handleGenerate}
                 onRedo={handleRedo}
               />
@@ -242,12 +240,12 @@ function ExperimentViewer() {
               <PlanningStage
                 question={experiment?.question || ""}
                 hasPriorFeedback={hasPriorFeedback}
-                onComplete={handlePlanComplete}
+                onComplete={() => {}}
               />
             </motion.div>
           )}
 
-          {(stage === "plan" || stage === "review") && (
+          {(stage === "plan" || stage === "review") && experiment?.plan && experiment?.LQC && (
             <motion.div
               key="plan"
               initial={{ opacity: 0 }}
@@ -257,9 +255,9 @@ function ExperimentViewer() {
               className="w-full h-full"
             >
               <ExperimentPlan
-                plan={MOCK_PLAN}
-                qcResult={MOCK_QC_RESULT}
-                question={experiment?.question || ""}
+                plan={experiment.plan as any}
+                qcResult={experiment.LQC as any}
+                question={experiment.question || ""}
                 hasPriorFeedback={hasPriorFeedback}
                 onNewPlan={handleNewPlan}
                 onFeedbackSubmit={() =>
@@ -285,6 +283,9 @@ function ExperimentViewer() {
 
 function Home() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialQuestion = searchParams.get("q") || undefined;
+  
   const [isGenerating, setIsGenerating] = useState(false);
 
   const generateMutation = useMutation({
@@ -327,9 +328,10 @@ function Home() {
           transition={{ duration: 0.35 }}
           className="w-full h-full relative"
         >
-          <InputStage onSubmit={handleQuestionSubmit} />
+          <InputStage initialValue={initialQuestion} onSubmit={handleQuestionSubmit} />
           {isGenerating && (
-            <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center backdrop-blur-sm">
+            <div className="absolute inset-0 bg-black/50 z-50 flex flex-col items-center justify-center backdrop-blur-sm space-y-4">
+              <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
               <div className="text-cyan-400 font-mono text-sm animate-pulse">
                 Initializing Experiment...
               </div>

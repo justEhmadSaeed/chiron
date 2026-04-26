@@ -2,9 +2,11 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "generate-contracts": {
+      "dependsOn": ["^generate-contracts"],
       "outputs": [
-        "../packages/contracts/openapi.json",
-        "../packages/contracts/src/generated/**"
+        "openapi.json",
+        "src/generated/**",
+        "../packages/contracts/openapi.json"
       ]
     },
     "build": {

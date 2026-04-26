@@ -56,6 +56,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/experiments/{experiment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Experiment */
+        get: operations["get_experiment_api_experiments__experiment_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/experiments/{experiment_id}/start-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Plan */
+        post: operations["start_plan_api_experiments__experiment_id__start_plan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -86,10 +120,59 @@ export interface components {
          * @enum {string}
          */
         AgentRunStatus: "queued" | "running" | "completed" | "failed";
+        /** Budget */
+        Budget: {
+            /** Total */
+            total: number;
+            /** Categories */
+            categories: components["schemas"]["BudgetCategory"][];
+        };
+        /** BudgetCategory */
+        BudgetCategory: {
+            /** Name */
+            name: string;
+            /** Amount */
+            amount: number;
+            /** Color */
+            color: string;
+            /** Percentage */
+            percentage: number;
+        };
         /** ExperimentCreateRequest */
         ExperimentCreateRequest: {
             /** Question */
             question: string;
+        };
+        /** ExperimentPlanData */
+        ExperimentPlanData: {
+            /** Title */
+            title: string;
+            /** Question */
+            question: string;
+            /** Createdat */
+            createdAt: string;
+            /**
+             * Complexity
+             * @enum {string}
+             */
+            complexity: "Low" | "Medium" | "High" | "Very High";
+            /** Teamsize */
+            teamSize: number;
+            /** Totalweeks */
+            totalWeeks: number;
+            /** Overview */
+            overview: string;
+            /** Hypothesis */
+            hypothesis: string;
+            /** Protocol */
+            protocol: components["schemas"]["ProtocolPhase"][];
+            /** Materials */
+            materials: components["schemas"]["Material"][];
+            budget: components["schemas"]["Budget"];
+            /** Timeline */
+            timeline: components["schemas"]["TimelinePhase"][];
+            /** Validation */
+            validation: components["schemas"]["ValidationMetric"][];
         };
         /** ExperimentResponse */
         ExperimentResponse: {
@@ -97,15 +180,134 @@ export interface components {
             experiment_id: string;
             /** Question */
             question: string;
-            /** Status */
-            status: string;
+            status: components["schemas"]["ExperimentStatus"];
             /** Created At */
             created_at: string;
+            LQC?: components["schemas"]["QCResult"] | null;
+            plan?: components["schemas"]["ExperimentPlanData"] | null;
         };
+        /**
+         * ExperimentStatus
+         * @enum {string}
+         */
+        ExperimentStatus: "running" | "lqc_completed" | "planning" | "completed";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** Material */
+        Material: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Catalog */
+            catalog: string;
+            /** Supplier */
+            supplier: string;
+            /** Unitcost */
+            unitCost: number;
+            /** Qty */
+            qty: number;
+            /** Unit */
+            unit: string;
+            /** Total */
+            total: number;
+            /** Category */
+            category: string;
+            /** Leadtime */
+            leadTime: string;
+        };
+        /** ProtocolPhase */
+        ProtocolPhase: {
+            /** Phase */
+            phase: string;
+            /** Weekrange */
+            weekRange: string;
+            /** Steps */
+            steps: components["schemas"]["ProtocolStep"][];
+        };
+        /** ProtocolStep */
+        ProtocolStep: {
+            /** Id */
+            id: number;
+            /** Title */
+            title: string;
+            /** Detail */
+            detail: string;
+            /** Duration */
+            duration: string;
+            /** Critical */
+            critical: boolean;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** QCResult */
+        QCResult: {
+            /**
+             * Signal
+             * @enum {string}
+             */
+            signal: "not_found" | "similar_work" | "exact_match";
+            /** Noveltyscore */
+            noveltyScore: number;
+            /** Scanduration */
+            scanDuration: number;
+            /** Databases */
+            databases: string[];
+            /** References */
+            references: components["schemas"]["Reference"][];
+            /** Summary */
+            summary?: components["schemas"]["QCSummaryParagraph"][] | null;
+            /** Label Names */
+            label_names?: string[] | null;
+        };
+        /** QCSummaryParagraph */
+        QCSummaryParagraph: {
+            /** Text */
+            text: string;
+            /** Citations */
+            citations: number[];
+            /** Continuation */
+            continuation?: string | null;
+        };
+        /** Reference */
+        Reference: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Authors */
+            authors: string;
+            /** Journal */
+            journal: string;
+            /** Year */
+            year: number;
+            /** Doi */
+            doi: string;
+            /** Similarity */
+            similarity: number;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "preprint" | "journal" | "review";
+        };
+        /** TimelinePhase */
+        TimelinePhase: {
+            /** Phase */
+            phase: string;
+            /** Start */
+            start: number;
+            /** Duration */
+            duration: number;
+            /** Tasks */
+            tasks: string[];
+            /** Color */
+            color: string;
+            /** Dependencies */
+            dependencies?: string[] | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -115,6 +317,19 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** ValidationMetric */
+        ValidationMetric: {
+            /** Metric */
+            metric: string;
+            /** Target */
+            target: string;
+            /** Method */
+            method: string;
+            /** Critical */
+            critical: boolean;
+            /** Timepoint */
+            timepoint: string;
         };
     };
     responses: never;
@@ -212,6 +427,68 @@ export interface operations {
                 "application/json": components["schemas"]["ExperimentCreateRequest"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_experiment_api_experiments__experiment_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperimentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_plan_api_experiments__experiment_id__start_plan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experiment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

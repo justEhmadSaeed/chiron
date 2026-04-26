@@ -15,6 +15,7 @@ import { MolecularCanvas } from "./MolecularCanvas";
 import { EXAMPLE_QUESTIONS } from "./mockData";
 
 interface InputStageProps {
+  initialValue?: string;
   onSubmit: (question: string) => void;
 }
 
@@ -38,8 +39,8 @@ const DOMAIN_CHIPS = [
   { label: "Biophysics", icon: Atom, color: "text-pink-400 bg-pink-950/60 border-pink-800/50" }
 ];
 
-export function InputStage({ onSubmit }: InputStageProps) {
-  const [question, setQuestion] = useState("");
+export function InputStage({ initialValue, onSubmit }: InputStageProps) {
+  const [question, setQuestion] = useState(initialValue || "");
   const [isFocused, setIsFocused] = useState(false);
   const [activeExample, setActiveExample] = useState<number | null>(null);
 

@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "generate": "openapi-typescript ./openapi.json -o ./src/generated/api.ts",
-    "build": "pnpm run generate",
+    "generate-contracts": "openapi-typescript ./openapi.json -o ./src/generated/api.ts",
+    "build": "pnpm run generate-contracts",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --ignore-path ../../.prettierignore --write .",
     "format:check": "prettier --ignore-path ../../.prettierignore --check .",

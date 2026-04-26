@@ -21,3 +21,8 @@ export interface AgentEvent {
   created_at: string;
   payload: Record<string, unknown>;
 }
+
+export type QCResult = components["schemas"]["QCResult"];
+export type Reference = components["schemas"]["Reference"];
+export type ExperimentPlanData = components["schemas"]["ExperimentPlanData"];
+export type ExperimentResponse = components["schemas"]["ExperimentResponse"];

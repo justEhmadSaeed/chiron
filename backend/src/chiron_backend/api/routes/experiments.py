@@ -6,6 +6,7 @@ from firebase_admin import db
 
 from datetime import datetime
 from chiron_backend.common.models import ExperimentCreateRequest, ExperimentResponse, ExperimentStatus, utc_now
+from chiron_backend.api.mock_data import MOCK_QC_RESULT_DICT, MOCK_PLAN_DICT
 
 logger = logging.getLogger(__name__)
 
@@ -54,30 +55,36 @@ async def get_experiment(experiment_id: str) -> ExperimentResponse:
 
         # Simulated progression logic
         now = utc_now()
-        updated = False
+        updated_data = {}
 
         if current_status == ExperimentStatus.RUNNING.value and created_at_str:
             created_at = datetime.fromisoformat(created_at_str)
             if (now - created_at).total_seconds() > 5:
                 current_status = ExperimentStatus.LQC_COMPLETED.value
                 data["status"] = current_status
-                updated = True
+                data["LQC"] = MOCK_QC_RESULT_DICT
+                updated_data["status"] = current_status
+                updated_data["LQC"] = MOCK_QC_RESULT_DICT
 
         if current_status == ExperimentStatus.PLANNING.value and plan_started_at_str:
             plan_started_at = datetime.fromisoformat(plan_started_at_str)
             if (now - plan_started_at).total_seconds() > 5:
                 current_status = ExperimentStatus.COMPLETED.value
                 data["status"] = current_status
-                updated = True
+                data["plan"] = MOCK_PLAN_DICT
+                updated_data["status"] = current_status
+                updated_data["plan"] = MOCK_PLAN_DICT
 
-        if updated:
-            ref.update({"status": current_status})
+        if updated_data:
+            ref.update(updated_data)
 
         return ExperimentResponse(
             experiment_id=experiment_id,
             question=data.get("question", ""),
             status=ExperimentStatus(current_status),
-            created_at=created_at_str or now.isoformat()
+            created_at=created_at_str or now.isoformat(),
+            LQC=data.get("LQC"),
+            plan=data.get("plan")
         )
     except HTTPException:
         raise

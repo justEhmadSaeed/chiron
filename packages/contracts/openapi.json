@@ -276,6 +276,54 @@
         ],
         "title": "AgentRunStatus"
       },
+      "Budget": {
+        "properties": {
+          "total": {
+            "type": "number",
+            "title": "Total"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetCategory"
+            },
+            "type": "array",
+            "title": "Categories"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total"
+        ],
+        "title": "Budget"
+      },
+      "BudgetCategory": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "amount": {
+            "type": "number",
+            "title": "Amount"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          },
+          "percentage": {
+            "type": "number",
+            "title": "Percentage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "amount",
+          "color",
+          "percentage"
+        ],
+        "title": "BudgetCategory"
+      },
       "ExperimentCreateRequest": {
         "properties": {
           "question": {
@@ -288,6 +336,92 @@
           "question"
         ],
         "title": "ExperimentCreateRequest"
+      },
+      "ExperimentPlanData": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat"
+          },
+          "complexity": {
+            "type": "string",
+            "enum": [
+              "Low",
+              "Medium",
+              "High",
+              "Very High"
+            ],
+            "title": "Complexity"
+          },
+          "teamSize": {
+            "type": "integer",
+            "title": "Teamsize"
+          },
+          "totalWeeks": {
+            "type": "integer",
+            "title": "Totalweeks"
+          },
+          "overview": {
+            "type": "string",
+            "title": "Overview"
+          },
+          "hypothesis": {
+            "type": "string",
+            "title": "Hypothesis"
+          },
+          "protocol": {
+            "items": {
+              "$ref": "#/components/schemas/ProtocolPhase"
+            },
+            "type": "array",
+            "title": "Protocol"
+          },
+          "materials": {
+            "items": {
+              "$ref": "#/components/schemas/Material"
+            },
+            "type": "array",
+            "title": "Materials"
+          },
+          "budget": {
+            "$ref": "#/components/schemas/Budget"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/TimelinePhase"
+            },
+            "type": "array",
+            "title": "Timeline"
+          },
+          "validation": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationMetric"
+            },
+            "type": "array",
+            "title": "Validation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "question",
+          "createdAt",
+          "complexity",
+          "teamSize",
+          "totalWeeks",
+          "overview",
+          "hypothesis",
+          "budget"
+        ],
+        "title": "ExperimentPlanData"
       },
       "ExperimentResponse": {
         "properties": {
@@ -305,6 +439,26 @@
           "created_at": {
             "type": "string",
             "title": "Created At"
+          },
+          "LQC": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/QCResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExperimentPlanData"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -339,6 +493,336 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "Material": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "catalog": {
+            "type": "string",
+            "title": "Catalog"
+          },
+          "supplier": {
+            "type": "string",
+            "title": "Supplier"
+          },
+          "unitCost": {
+            "type": "number",
+            "title": "Unitcost"
+          },
+          "qty": {
+            "type": "integer",
+            "title": "Qty"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "total": {
+            "type": "number",
+            "title": "Total"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "leadTime": {
+            "type": "string",
+            "title": "Leadtime"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "catalog",
+          "supplier",
+          "unitCost",
+          "qty",
+          "unit",
+          "total",
+          "category",
+          "leadTime"
+        ],
+        "title": "Material"
+      },
+      "ProtocolPhase": {
+        "properties": {
+          "phase": {
+            "type": "string",
+            "title": "Phase"
+          },
+          "weekRange": {
+            "type": "string",
+            "title": "Weekrange"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/ProtocolStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phase",
+          "weekRange"
+        ],
+        "title": "ProtocolPhase"
+      },
+      "ProtocolStep": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "duration": {
+            "type": "string",
+            "title": "Duration"
+          },
+          "critical": {
+            "type": "boolean",
+            "title": "Critical"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "detail",
+          "duration",
+          "critical"
+        ],
+        "title": "ProtocolStep"
+      },
+      "QCResult": {
+        "properties": {
+          "signal": {
+            "type": "string",
+            "enum": [
+              "not_found",
+              "similar_work",
+              "exact_match"
+            ],
+            "title": "Signal"
+          },
+          "noveltyScore": {
+            "type": "number",
+            "title": "Noveltyscore"
+          },
+          "scanDuration": {
+            "type": "number",
+            "title": "Scanduration"
+          },
+          "databases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Databases"
+          },
+          "references": {
+            "items": {
+              "$ref": "#/components/schemas/Reference"
+            },
+            "type": "array",
+            "title": "References"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/QCSummaryParagraph"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "label_names": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Names"
+          }
+        },
+        "type": "object",
+        "required": [
+          "signal",
+          "noveltyScore",
+          "scanDuration"
+        ],
+        "title": "QCResult"
+      },
+      "QCSummaryParagraph": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "citations": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Citations"
+          },
+          "continuation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Continuation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "QCSummaryParagraph"
+      },
+      "Reference": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "authors": {
+            "type": "string",
+            "title": "Authors"
+          },
+          "journal": {
+            "type": "string",
+            "title": "Journal"
+          },
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "doi": {
+            "type": "string",
+            "title": "Doi"
+          },
+          "similarity": {
+            "type": "number",
+            "title": "Similarity"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "preprint",
+              "journal",
+              "review"
+            ],
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "authors",
+          "journal",
+          "year",
+          "doi",
+          "similarity",
+          "type"
+        ],
+        "title": "Reference"
+      },
+      "TimelinePhase": {
+        "properties": {
+          "phase": {
+            "type": "string",
+            "title": "Phase"
+          },
+          "start": {
+            "type": "number",
+            "title": "Start"
+          },
+          "duration": {
+            "type": "number",
+            "title": "Duration"
+          },
+          "tasks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tasks"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          },
+          "dependencies": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dependencies"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phase",
+          "start",
+          "duration",
+          "color"
+        ],
+        "title": "TimelinePhase"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -371,6 +855,39 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "ValidationMetric": {
+        "properties": {
+          "metric": {
+            "type": "string",
+            "title": "Metric"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          },
+          "critical": {
+            "type": "boolean",
+            "title": "Critical"
+          },
+          "timepoint": {
+            "type": "string",
+            "title": "Timepoint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metric",
+          "target",
+          "method",
+          "critical",
+          "timepoint"
+        ],
+        "title": "ValidationMetric"
       }
     }
   }
