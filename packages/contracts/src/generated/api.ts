@@ -125,7 +125,7 @@ export interface components {
             /** Total */
             total: number;
             /** Categories */
-            categories: components["schemas"]["BudgetCategory"][];
+            categories?: components["schemas"]["BudgetCategory"][];
         };
         /** BudgetCategory */
         BudgetCategory: {
@@ -165,14 +165,14 @@ export interface components {
             /** Hypothesis */
             hypothesis: string;
             /** Protocol */
-            protocol: components["schemas"]["ProtocolPhase"][];
+            protocol?: components["schemas"]["ProtocolPhase"][];
             /** Materials */
-            materials: components["schemas"]["Material"][];
+            materials?: components["schemas"]["Material"][];
             budget: components["schemas"]["Budget"];
             /** Timeline */
-            timeline: components["schemas"]["TimelinePhase"][];
+            timeline?: components["schemas"]["TimelinePhase"][];
             /** Validation */
-            validation: components["schemas"]["ValidationMetric"][];
+            validation?: components["schemas"]["ValidationMetric"][];
         };
         /** ExperimentResponse */
         ExperimentResponse: {
@@ -226,7 +226,7 @@ export interface components {
             /** Weekrange */
             weekRange: string;
             /** Steps */
-            steps: components["schemas"]["ProtocolStep"][];
+            steps?: components["schemas"]["ProtocolStep"][];
         };
         /** ProtocolStep */
         ProtocolStep: {
@@ -255,9 +255,9 @@ export interface components {
             /** Scanduration */
             scanDuration: number;
             /** Databases */
-            databases: string[];
+            databases?: string[];
             /** References */
-            references: components["schemas"]["Reference"][];
+            references?: components["schemas"]["Reference"][];
             /** Summary */
             summary?: components["schemas"]["QCSummaryParagraph"][] | null;
             /** Label Names */
@@ -268,7 +268,7 @@ export interface components {
             /** Text */
             text: string;
             /** Citations */
-            citations: number[];
+            citations?: number[];
             /** Continuation */
             continuation?: string | null;
         };
@@ -303,7 +303,7 @@ export interface components {
             /** Duration */
             duration: number;
             /** Tasks */
-            tasks: string[];
+            tasks?: string[];
             /** Color */
             color: string;
             /** Dependencies */
