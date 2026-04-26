@@ -1,8 +1,10 @@
 import logging
+import asyncio
 from datetime import datetime
 from uuid import uuid4
+from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
 from firebase_admin import db
 
 from chiron_backend.api.mock_data import MOCK_PLAN_DICT, MOCK_QC_RESULT_DICT
@@ -10,22 +12,59 @@ from chiron_backend.common.models import (
     ExperimentCreateRequest,
     ExperimentResponse,
     ExperimentStatus,
+    AgentEvent,
     utc_now,
 )
+from chiron_backend.common.realtime import ensure_realtime_hub
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/experiments", tags=["experiments"])
 
 
+async def simulate_lqc_process(experiment_id: str, hub: Any) -> None:
+    """
+    Simulates the LQC process with a delay, updates Firebase, and broadcasts an event.
+    """
+    try:
+        # Wait to simulate "agent running"
+        await asyncio.sleep(8)
+        
+        ref = db.reference(f"experiments/{experiment_id}")
+        
+        updated_data = {
+            "status": ExperimentStatus.LQC_COMPLETED.value,
+            "LQC": MOCK_QC_RESULT_DICT
+        }
+        
+        ref.update(updated_data)
+        
+        # Broadcast via WebSocket
+        event = AgentEvent(
+            run_id=experiment_id,
+            event_type="LQC_COMPLETED",
+            payload={"experiment_id": experiment_id, "status": ExperimentStatus.LQC_COMPLETED.value}
+        )
+        
+        await hub.broadcast(event)
+        logger.info(f"Broadcasted LQC_COMPLETED for {experiment_id}")
+        
+    except Exception as e:
+        logger.error(f"Error in simulate_lqc_process for {experiment_id}: {e}")
+
+
 @router.post("/generate", response_model=ExperimentResponse)
-async def generate_experiment(request: ExperimentCreateRequest) -> ExperimentResponse:
+async def generate_experiment(
+    request_data: ExperimentCreateRequest, 
+    background_tasks: BackgroundTasks,
+    request: Request
+) -> ExperimentResponse:
     try:
         experiment_id = str(uuid4())
         created_at_str = utc_now().isoformat()
 
         experiment_data = {
-            "question": request.question,
+            "question": request_data.question,
             "status": ExperimentStatus.RUNNING.value,
             "createdAt": created_at_str
         }
@@ -34,9 +73,13 @@ async def generate_experiment(request: ExperimentCreateRequest) -> ExperimentRes
         ref = db.reference("experiments")
         ref.child(experiment_id).set(experiment_data)
 
+        # Start simulation background task
+        hub = ensure_realtime_hub(request.app.state)
+        background_tasks.add_task(simulate_lqc_process, experiment_id, hub)
+
         return ExperimentResponse(
             experiment_id=experiment_id,
-            question=request.question,
+            question=request_data.question,
             status=ExperimentStatus.RUNNING,
             created_at=created_at_str
         )
@@ -56,38 +99,12 @@ async def get_experiment(experiment_id: str) -> ExperimentResponse:
 
         current_status = data.get("status", ExperimentStatus.RUNNING.value)
         created_at_str = data.get("createdAt")
-        plan_started_at_str = data.get("planStartedAt")
-
-        # Simulated progression logic
-        now = utc_now()
-        updated_data = {}
-
-        if current_status == ExperimentStatus.RUNNING.value and created_at_str:
-            created_at = datetime.fromisoformat(created_at_str)
-            if (now - created_at).total_seconds() > 5:
-                current_status = ExperimentStatus.LQC_COMPLETED.value
-                data["status"] = current_status
-                data["LQC"] = MOCK_QC_RESULT_DICT
-                updated_data["status"] = current_status
-                updated_data["LQC"] = MOCK_QC_RESULT_DICT
-
-        if current_status == ExperimentStatus.PLANNING.value and plan_started_at_str:
-            plan_started_at = datetime.fromisoformat(plan_started_at_str)
-            if (now - plan_started_at).total_seconds() > 5:
-                current_status = ExperimentStatus.COMPLETED.value
-                data["status"] = current_status
-                data["plan"] = MOCK_PLAN_DICT
-                updated_data["status"] = current_status
-                updated_data["plan"] = MOCK_PLAN_DICT
-
-        if updated_data:
-            ref.update(updated_data)
 
         return ExperimentResponse(
             experiment_id=experiment_id,
             question=data.get("question", ""),
             status=ExperimentStatus(current_status),
-            created_at=created_at_str or now.isoformat(),
+            created_at=created_at_str or utc_now().isoformat(),
             LQC=data.get("LQC"),
             plan=data.get("plan")
         )

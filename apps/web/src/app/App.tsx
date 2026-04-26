@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ExperimentPlan } from "./components/planner/ExperimentPlan";
 import { InputStage } from "./components/planner/InputStage";
@@ -103,6 +103,10 @@ function ExperimentViewer() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  // Track whether the backend has signalled LQC completion via WebSocket
+  const [isLQCReady, setIsLQCReady] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
+
   const {
     data: experiment,
     isError,
@@ -114,13 +118,57 @@ function ExperimentViewer() {
       if (!res.ok) throw new Error("Failed to fetch");
       return res.json();
     },
+    // Keep a slow poll as a silent fallback in case WS is unavailable
     refetchInterval: (query) => {
-      // Poll every 2 seconds if not completed
       const status = query.state.data?.status;
-      if (status === "completed") return false;
-      return 2000;
+      if (status === "lqc_completed" || status === "completed") return false;
+      return 5000;
     }
   });
+
+  // Open WebSocket while we are in the scanning stage and close it once done
+  useEffect(() => {
+    if (!id) return;
+    // If the experiment is already past scanning, skip WS
+    if (experiment?.status && experiment.status !== "running") return;
+
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const ws = new WebSocket(`${protocol}://${window.location.host}/ws/agent-events`);
+    wsRef.current = ws;
+
+    ws.onmessage = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data as string) as {
+          event_type: string;
+          payload: { experiment_id?: string };
+        };
+        if (
+          data.event_type === "LQC_COMPLETED" &&
+          data.payload.experiment_id === id
+        ) {
+          setIsLQCReady(true);
+          // Invalidate after the ScanningStage animation completes (~1.5 s)
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ["experiment", id] });
+          }, 2000);
+          ws.close();
+        }
+      } catch {
+        // ignore malformed messages
+      }
+    };
+
+    ws.onerror = () => {
+      // Silently ignore – polling fallback will still work
+    };
+
+    return () => {
+      ws.close();
+      wsRef.current = null;
+    };
+  // Re-run only when the experiment id or its status changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, experiment?.status]);
 
   const startPlanMutation = useMutation({
     mutationFn: async () => {
@@ -146,7 +194,7 @@ function ExperimentViewer() {
   }
 
   const handleScanComplete = useCallback(() => {
-    // Progression is handled by polling the backend
+    // Stage transition is driven by WS / polling, not the animation itself
   }, []);
 
   const handleGenerate = useCallback(() => {
@@ -206,6 +254,7 @@ function ExperimentViewer() {
               <ScanningStage
                 question={experiment?.question || ""}
                 onComplete={handleScanComplete}
+                isLQCReady={isLQCReady}
               />
             </motion.div>
           )}

@@ -25,34 +25,43 @@ const SCAN_STEPS: ScanStep[] = [
 interface ScanningStageProps {
   question: string;
   onComplete: () => void;
+  isLQCReady?: boolean;
 }
 
-export function ScanningStage({ question, onComplete }: ScanningStageProps) {
+export function ScanningStage({ question, onComplete, isLQCReady = false }: ScanningStageProps) {
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [activeStep, setActiveStep] = useState(0);
   const [totalProgress, setTotalProgress] = useState(0);
 
   useEffect(() => {
-    let stepIdx = 0;
-    let totalDelay = 0;
-
     const runStep = (idx: number) => {
-      if (idx >= SCAN_STEPS.length) {
-        setTimeout(onComplete, 600);
-        return;
-      }
+      if (idx >= SCAN_STEPS.length) return;
+      
       setActiveStep(idx);
+
+      // Don't auto-complete the last step
+      if (idx === SCAN_STEPS.length - 1) return;
 
       setTimeout(() => {
         setCompletedSteps((prev) => [...prev, SCAN_STEPS[idx].id]);
-        setTotalProgress(Math.round(((idx + 1) / SCAN_STEPS.length) * 100));
+        // Cap progress at 95% until LQC is actually ready
+        const nextProgress = Math.min(95, Math.round(((idx + 1) / SCAN_STEPS.length) * 100));
+        setTotalProgress(nextProgress);
         runStep(idx + 1);
       }, SCAN_STEPS[idx].duration);
     };
 
     const timer = setTimeout(() => runStep(0), 400);
     return () => clearTimeout(timer);
-  }, [onComplete]);
+  }, []);
+
+  useEffect(() => {
+    if (isLQCReady && activeStep === SCAN_STEPS.length - 1) {
+      setCompletedSteps((prev) => [...prev, SCAN_STEPS[activeStep].id]);
+      setTotalProgress(100);
+      setTimeout(onComplete, 1500);
+    }
+  }, [isLQCReady, activeStep, onComplete]);
 
   return (
     <div className="relative w-full h-full flex items-center justify-center overflow-hidden"
