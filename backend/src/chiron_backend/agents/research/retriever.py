@@ -14,13 +14,13 @@ import uuid
 import logging
 from pinecone import Pinecone, ServerlessSpec
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from chiron_backend.common.config import get_settings
 
 logger = logging.getLogger("research_agent")
 settings = get_settings()
 
-_EMBEDDING_DIM = 3072
+_EMBEDDING_DIM = 1024
 _HYPOTHESIS_NAMESPACE = "hypotheses"
 
 # ---------------------------------------------------------------------------
@@ -68,15 +68,39 @@ def _get_index():
     return _pinecone_index
 
 
-_embedder: GoogleGenerativeAIEmbeddings | None = None
+class PineconeInferenceEmbedder:
+    def __init__(self, api_key: str, model: str):
+        # We don't need the api_key passed explicitly if we reuse the global _pc
+        # but for clean abstraction we initialize a new Pinecone client.
+        from pinecone import Pinecone
+        self.pc = Pinecone(api_key=api_key)
+        self.model = model
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        response = self.pc.inference.embed(
+            model=self.model,
+            inputs=texts,
+            parameters={"input_type": "passage", "truncate": "END"}
+        )
+        return [data['values'] for data in response.data]
+
+    def embed_query(self, text: str) -> list[float]:
+        response = self.pc.inference.embed(
+            model=self.model,
+            inputs=[text],
+            parameters={"input_type": "query", "truncate": "END"}
+        )
+        return response.data[0]['values']
+
+_embedder: PineconeInferenceEmbedder | None = None
 
 
-def _get_embedder() -> GoogleGenerativeAIEmbeddings:
+def _get_embedder() -> PineconeInferenceEmbedder:
     global _embedder
     if _embedder is None:
-        _embedder = GoogleGenerativeAIEmbeddings(
+        _embedder = PineconeInferenceEmbedder(
             model=settings.embedding_model,
-            google_api_key=settings.gemini_api_key,
+            api_key=settings.pinecone_api_key,
         )
     return _embedder
 
@@ -105,18 +129,23 @@ def store_and_retrieve_rag_chunks(
     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
     timestamp = int(time.time())
 
-    docs: list[str] = []
-    metadata: list[dict] = []
-    ids: list[str] = []
+    grouped_docs: dict[int, list[str]] = {}
+    grouped_metadata: dict[int, list[dict]] = {}
+    grouped_ids: dict[int, list[str]] = {}
 
     for i, res in enumerate(raw_search_results):
         content = res.get("raw_content") or res.get("content", "")
         if not content:
             continue
         chunks = splitter.split_text(content)
+        
+        grouped_docs[i] = []
+        grouped_metadata[i] = []
+        grouped_ids[i] = []
+        
         for j, chunk in enumerate(chunks):
-            docs.append(chunk)
-            metadata.append({
+            grouped_docs[i].append(chunk)
+            grouped_metadata[i].append({
                 "url": res.get("url", ""),
                 "title": res.get("title", ""),
                 "score": float(res.get("score", 0.0)),
@@ -124,18 +153,38 @@ def store_and_retrieve_rag_chunks(
                 "experiment_id": experiment_id,
                 "text": chunk,
             })
-            ids.append(f"rag_{experiment_id}_{timestamp}_{i}_{j}")
+            grouped_ids[i].append(f"rag_{experiment_id}_{timestamp}_{i}_{j}")
+
+    docs: list[str] = []
+    metadata: list[dict] = []
+    ids: list[str] = []
+    
+    MAX_CHUNKS = 400
+    if grouped_docs:
+        sources = list(grouped_docs.keys())
+        pointers = {s: 0 for s in sources}
+        total_extracted = 0
+        
+        while total_extracted < MAX_CHUNKS:
+            added_in_round = False
+            for s in sources:
+                if pointers[s] < len(grouped_docs[s]):
+                    docs.append(grouped_docs[s][pointers[s]])
+                    metadata.append(grouped_metadata[s][pointers[s]])
+                    ids.append(grouped_ids[s][pointers[s]])
+                    pointers[s] += 1
+                    total_extracted += 1
+                    added_in_round = True
+                
+                if total_extracted >= MAX_CHUNKS:
+                    break
+            
+            if not added_in_round:
+                break
 
     if not docs:
         logger.warning(f"[RAG:{namespace}] No content to index.")
         return []
-
-    MAX_CHUNKS = 200
-    if len(docs) > MAX_CHUNKS:
-        logger.info(f"[RAG:{namespace}] Capping {len(docs)} chunks → {MAX_CHUNKS}")
-        docs = docs[:MAX_CHUNKS]
-        metadata = metadata[:MAX_CHUNKS]
-        ids = ids[:MAX_CHUNKS]
 
     logger.info(f"[RAG:{namespace}] Upserting {len(docs)} chunks...")
 

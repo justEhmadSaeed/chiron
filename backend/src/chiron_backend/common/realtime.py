@@ -24,7 +24,7 @@ class RealtimeHub:
         for connection in self._connections:
             try:
                 await connection.send_json(event.model_dump(mode="json"))
-            except RuntimeError:
+            except Exception:
                 stale_connections.append(connection)
 
         for connection in stale_connections:
