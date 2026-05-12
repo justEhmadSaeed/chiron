@@ -11,6 +11,10 @@ opentelemetry-exporter-otlp==1.27.0
 firebase-admin>=6.5.0
 langchain-google-genai>=2.0.1
 tavily-python>=0.5.0
-langgraph>=0.2.39
 langchain-community>=0.3.3
 pinecone>=5.0.0
+instructor>=1.6.0
+google-genai>=0.3.0
+langgraph>=0.2.39
+jsonref>=1.1.0
+groq>=0.11.0

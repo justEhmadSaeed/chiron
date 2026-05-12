@@ -42,6 +42,7 @@ class ExperimentStatus(StrEnum):
     LQC_COMPLETED = "lqc_completed"
     PLANNING = "planning"
     COMPLETED = "completed"
+    FAILED = "failed"
 
 
 class ExperimentCreateRequest(BaseModel):

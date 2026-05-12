@@ -76,6 +76,19 @@ async def simulate_lqc_process(experiment_id: str, hub: Any) -> None:
 
     except Exception as e:
         logger.error(f"[LQC] Error in lqc_process for {experiment_id}: {e}")
+        ref = db.reference(f"experiments/{experiment_id}")
+        ref.update({"status": ExperimentStatus.FAILED.value})
+        
+        event = AgentEvent(
+            run_id=experiment_id,
+            event_type="LQC_FAILED",
+            payload={
+                "experiment_id": experiment_id,
+                "status": ExperimentStatus.FAILED.value,
+                "error": str(e),
+            },
+        )
+        await hub.broadcast(event)
 
 
 async def simulate_planning_process(experiment_id: str, hub: Any) -> None:
@@ -115,6 +128,19 @@ async def simulate_planning_process(experiment_id: str, hub: Any) -> None:
 
     except Exception as e:
         logger.error(f"[Plan] Error in planning_process for {experiment_id}: {e}")
+        ref = db.reference(f"experiments/{experiment_id}")
+        ref.update({"status": ExperimentStatus.FAILED.value})
+        
+        event = AgentEvent(
+            run_id=experiment_id,
+            event_type="PLAN_FAILED",
+            payload={
+                "experiment_id": experiment_id,
+                "status": ExperimentStatus.FAILED.value,
+                "error": str(e),
+            },
+        )
+        await hub.broadcast(event)
 
 
 @router.post("/generate", response_model=ExperimentResponse)

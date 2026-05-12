@@ -12,7 +12,7 @@ import time
 from typing import Any
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from chiron_backend.agents.research.retriever import PineconeInferenceEmbedder
 from pinecone import Pinecone
 
 from chiron_backend.common.config import get_settings
@@ -31,12 +31,12 @@ _pinecone_index = None
 _embedder = None
 
 
-def _get_embedder() -> GoogleGenerativeAIEmbeddings:
+def _get_embedder() -> PineconeInferenceEmbedder:
     global _embedder
     if _embedder is None:
-        _embedder = GoogleGenerativeAIEmbeddings(
+        _embedder = PineconeInferenceEmbedder(
             model=settings.embedding_model,
-            google_api_key=settings.gemini_api_key,
+            api_key=settings.pinecone_api_key,
         )
     return _embedder
 
@@ -63,9 +63,9 @@ def store_and_retrieve(
     index = _get_index()
     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
 
-    docs: list[str] = []
-    metadata: list[dict] = []
-    ids: list[str] = []
+    grouped_docs: dict[int, list[str]] = {}
+    grouped_metadata: dict[int, list[dict]] = {}
+    grouped_ids: dict[int, list[str]] = {}
     timestamp = int(time.time())
 
     for i, res in enumerate(raw_search_results):
@@ -73,15 +73,47 @@ def store_and_retrieve(
         if not content:
             continue
         chunks = splitter.split_text(content)
+        
+        grouped_docs[i] = []
+        grouped_metadata[i] = []
+        grouped_ids[i] = []
+        
         for j, chunk in enumerate(chunks):
-            docs.append(chunk)
-            metadata.append({
+            grouped_docs[i].append(chunk)
+            grouped_metadata[i].append({
                 "url": res.get("url", ""),
                 "title": res.get("title", ""),
-                "score": res.get("score", 0.0),
+                "score": float(res.get("score", 0.0)),
                 "text": chunk,
             })
-            ids.append(f"{namespace}_{timestamp}_{i}_{j}")
+            grouped_ids[i].append(f"{namespace}_{timestamp}_{i}_{j}")
+
+    docs: list[str] = []
+    metadata: list[dict] = []
+    ids: list[str] = []
+    
+    MAX_CHUNKS = 400
+    if grouped_docs:
+        sources = list(grouped_docs.keys())
+        pointers = {s: 0 for s in sources}
+        total_extracted = 0
+        
+        while total_extracted < MAX_CHUNKS:
+            added_in_round = False
+            for s in sources:
+                if pointers[s] < len(grouped_docs[s]):
+                    docs.append(grouped_docs[s][pointers[s]])
+                    metadata.append(grouped_metadata[s][pointers[s]])
+                    ids.append(grouped_ids[s][pointers[s]])
+                    pointers[s] += 1
+                    total_extracted += 1
+                    added_in_round = True
+                
+                if total_extracted >= MAX_CHUNKS:
+                    break
+            
+            if not added_in_round:
+                break
 
     if not docs:
         logger.warning(f"[RAG:{namespace}] No content to index.")

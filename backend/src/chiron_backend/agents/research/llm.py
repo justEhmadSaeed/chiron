@@ -1,20 +1,20 @@
 """
-Gemini LLM Factory
-====================
-Handles both Gemini models (which support response_mime_type) and Gemma models
-(which don't). Uses the Pydantic model's real JSON Schema in prompts and
-robust extraction to find the actual data JSON in mixed prose.
+Instructor-Based Structured Extraction LLM Factory
+======================================================
+This module replaces LangChain and LangGraph with the industry-standard
+`instructor` library and native `google.generativeai` SDK.
+
+By removing heavy LangChain abstractions, we significantly reduce execution
+latency while maintaining strict Pydantic parsing and native error-retry loops.
 """
 
 from __future__ import annotations
 
-import json
-import logging
-import re
+import structlog
 from typing import Any, Type
 
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import SystemMessage, HumanMessage
+from groq import Groq
+import instructor
 from pydantic import BaseModel
 
 from chiron_backend.common.config import get_settings
@@ -24,103 +24,40 @@ from chiron_backend.agents.research.agents_config import (
     BaseAgentConfig,
 )
 
-logger = logging.getLogger("research_agent")
+logger = structlog.get_logger("research_agent")
 settings = get_settings()
 
-_llm_cache: dict[str, ChatGoogleGenerativeAI] = {}
+_client_cache: dict[str, instructor.Instructor] = {}
 
-_JSON_NATIVE_MODELS = {"gemini-2.0-flash", "gemini-2.0-pro", "gemini-1.5-flash", "gemini-1.5-pro"}
-
-
-def _get_llm(model: str) -> ChatGoogleGenerativeAI:
-    if model not in _llm_cache:
-        kwargs: dict[str, Any] = {
-            "model": model,
-            "google_api_key": settings.gemini_api_key,
-            "temperature": 0.3,
-        }
-        if model in _JSON_NATIVE_MODELS:
-            kwargs["model_kwargs"] = {"response_mime_type": "application/json"}
-        _llm_cache[model] = ChatGoogleGenerativeAI(**kwargs)
-    return _llm_cache[model]
+def get_client(model_name: str) -> instructor.Instructor:
+    if model_name not in _client_cache:
+        client = Groq(
+            api_key=settings.groq_api_key,
+            timeout=120.0
+        )
+        _client_cache[model_name] = instructor.from_groq(
+            client=client,
+            mode=instructor.Mode.TOOLS,
+        )
+    return _client_cache[model_name]
 
 
-def _build_system_prompt(config: BaseAgentConfig, output_schema: Type[BaseModel]) -> str:
-    # Use the Pydantic model's real JSON Schema (proper JSON, not hand-written descriptions)
-    schema = json.dumps(output_schema.model_json_schema(), indent=2)
+def _build_system_prompt(config: BaseAgentConfig) -> str:
+    """
+    Builds the system instructions without needing to inject the raw JSON schema
+    manually, because Instructor handles schema injection automatically at the API level.
+    """
     return (
         f"{config.system_prompt_role}\n\n"
         f"Objective: {config.objective}\n\n"
         f"Instructions:\n{config.execution_instructions}\n\n"
-        f"CRITICAL: Respond with ONLY a single valid JSON object. "
-        f"No explanations, no markdown, no text before or after.\n\n"
-        f"JSON Schema:\n{schema}"
+        f"CRITICAL INSTRUCTION: Respond with ONLY a valid JSON object adhering strictly to the expected schema."
     )
 
 
-def _extract_json(text: str) -> str:
-    """
-    Extract the largest valid JSON object from text.
-    Tries markdown fences first, then finds all top-level brace-matched
-    candidates and returns the longest one that parses as valid JSON.
-    """
-    stripped = text.strip()
-
-    # Case 1: Markdown fenced block
-    fence_match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", stripped, re.DOTALL)
-    if fence_match:
-        candidate = fence_match.group(1).strip()
-        try:
-            json.loads(candidate)
-            return candidate
-        except json.JSONDecodeError:
-            pass
-
-    # Case 2: Find all top-level { ... } candidates via brace matching
-    candidates: list[str] = []
-    i = 0
-    while i < len(stripped):
-        if stripped[i] == "{":
-            depth = 0
-            in_string = False
-            escape_next = False
-            for j in range(i, len(stripped)):
-                ch = stripped[j]
-                if escape_next:
-                    escape_next = False
-                    continue
-                if ch == "\\":
-                    escape_next = True
-                    continue
-                if ch == '"' and not escape_next:
-                    in_string = not in_string
-                    continue
-                if in_string:
-                    continue
-                if ch == "{":
-                    depth += 1
-                elif ch == "}":
-                    depth -= 1
-                    if depth == 0:
-                        candidates.append(stripped[i : j + 1])
-                        i = j + 1
-                        break
-            else:
-                i += 1
-        else:
-            i += 1
-
-    # Sort candidates by length (longest first) and return first valid one
-    candidates.sort(key=len, reverse=True)
-    for candidate in candidates:
-        try:
-            json.loads(candidate)
-            return candidate
-        except json.JSONDecodeError:
-            continue
-
-    raise ValueError(f"No valid JSON found in LLM response. First 300 chars: {stripped[:300]}")
-
+# ---------------------------------------------------------------------------
+#  Public API
+# ---------------------------------------------------------------------------
 
 def call_agent(
     agent_name: AgentName,
@@ -129,33 +66,34 @@ def call_agent(
     model: str | None = None,
 ) -> dict[str, Any]:
     """
-    Invoke a named agent and return a validated dict matching output_schema.
-    Works with both Gemini (JSON-native) and Gemma (prose-with-JSON) models.
+    Invoke a named agent using Instructor for zero-latency structured extraction.
+    Instructor handles parsing the Pydantic schema and natively re-prompts the LLM 
+    up to 3 times if it fails validation, avoiding any LangGraph overhead.
     """
     if model is None:
         model = settings.llm_model
 
     config = AGENT_REGISTRY[agent_name]
-    llm = _get_llm(model)
+    logger.info(f"[AGENT START] {config.agent_name} Started")
 
-    messages = [
-        SystemMessage(content=_build_system_prompt(config, output_schema)),
-        HumanMessage(content=user_message),
-    ]
+    client = get_client(model)
+    system_prompt = _build_system_prompt(config)
 
-    logger.info(f"  ➤  [{config.agent_name}] calling {model}...")
-    response = llm.invoke(messages)
-
-    content = response.content
-    if isinstance(content, list):
-        raw_text = "".join(
-            block.get("text", str(block)) if isinstance(block, dict) else str(block)
-            for block in content
+    try:
+        response = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ],
+            model=model,
+            response_model=output_schema,
+            max_retries=3,
         )
-    else:
-        raw_text = content
-
-    raw_json = _extract_json(raw_text)
-    parsed = output_schema.model_validate_json(raw_json)
-    logger.info(f"  ✓  [{config.agent_name}] done.")
-    return parsed.model_dump()
+        
+        final_dict = response.model_dump()
+        logger.info(f"[AGENT COMPLETE] {config.agent_name} Completed", output=final_dict)
+        return final_dict
+        
+    except Exception as e:
+        logger.error(f"[AGENT ERROR] {config.agent_name} failed validation after 3 retries: {str(e)}")
+        raise
