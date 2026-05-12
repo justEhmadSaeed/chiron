@@ -19,7 +19,7 @@ services:
     environment:
       APP_ENV: development
       API_PORT: "8000"
-      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,https://chiron-web-eta.vercel.app
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,https://chiron-web-eta.vercel.app,https://chiron.ehmad.dev
       REDIS_URL: redis://redis:6379/0
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     ports:
@@ -65,4 +65,3 @@ services:
     ports:
       - "4317:4317"
       - "4318:4318"
-

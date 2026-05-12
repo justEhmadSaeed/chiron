@@ -10,7 +10,8 @@ class Settings(BaseSettings):
     cors_origins: str = (
         "http://localhost:3000,http://127.0.0.1:3000,"
         "https://chiron-web-eta.vercel.app,"
-        "https://chiron-be-heffh9eegzdcegh3.canadacentral-01.azurewebsites.net"
+        "https://chiron-be-heffh9eegzdcegh3.canadacentral-01.azurewebsites.net,"
+        "https://chiron.ehmad.dev"
     )
 
     redis_url: str = "redis://localhost:6379/0"
